@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Asistencia Seguro | MAS Digital</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        // 🛑🛑 ¡ATENCIÓN! PEGA AQUÍ LA MISMA URL QUE EN EL INDEX 🛑🛑
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/TU_URL_AQUI/exec";
+
+        window.google = {
+            script: {
+                run: {
+                    withSuccessHandler: function(cb) { this._success = cb; return this; },
+                    withFailureHandler: function(cb) { this._failure = cb; return this; },
+                    _callApi: function(accion, payload) {
+                        var self = this; if (!payload) payload = {};
+                        fetch(URL_BACKEND_GOOGLE, { method: 'POST', body: JSON.stringify({accion: accion, payload: payload}), headers: {"Content-Type": "text/plain;charset=utf-8"} })
+                        .then(r => r.json()).then(data => { if (self._success) self._success(data); })
+                        .catch(err => { if (self._failure) self._failure(err); });
+                    },
+                    verificarDniBiometria: function(dni) { this._callApi('verificarDniBiometria', { dni: dni }); },
+                    vincularBiometria: function(dni, llave, lat, lng) { this._callApi('vincularBiometria', { dni: dni, llave: llave, lat: lat, lng: lng }); },
+                    marcarAsistenciaBiometrica: function(dni, llave, lat, lng) { this._callApi('marcarAsistenciaBiometrica', { dni: dni, llave: llave, lat: lat, lng: lng }); }
+                }
+            }
+        };
+    </script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Montserrat', 'sans-serif'] }, colors: { brand: { blue: '#2563EB', purple: '#8B5CF6', orange: '#F97316' }, slate: { 850: '#151e2e', 900: '#0f172a' } } } } }
+    </script>
+    <style>
+        body { background-color: #f1f5f9; color: #0f172a; transition: background-color 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; }
+        .dark body { background-color: #020617; color: #f8fafc; } 
+        .card-neo { background: #ffffff; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; }
+        .dark .card-neo { background: #0f172a; border-color: #1e293b; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
+    </style>
+</head>
+<body class="min-h-[100dvh] flex flex-col relative pb-6">
+
+    <div id="loader-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/40 dark:bg-black/60 backdrop-blur-md transition-all">
+        <div class="flex flex-col items-center gap-4 bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-700">
+            <svg class="animate-spin h-10 w-10 text-brand-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <p class="text-slate-800 dark:text-slate-200 font-bold text-sm tracking-widest uppercase" id="loader-text">Procesando...</p>
+        </div>
+    </div>
+
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors duration-300">
+        <div class="px-5 py-3 flex justify-between items-center gap-4">
+            <div class="flex items-center gap-3 select-none">
+                <div class="flex flex-col mt-1">
+                    <div class="flex items-baseline leading-none">
+                        <span class="font-display font-[900] text-xl text-slate-900 dark:text-white tracking-tighter">MAS</span>
+                        <span class="font-display font-[700] text-xl text-slate-900 dark:text-white tracking-tighter ml-1">Digital</span>
+                        <span class="w-2 h-2 bg-brand-orange rounded-full ml-1 relative top-[-1px]"></span>
+                    </div>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">Portal Biométrico</span>
+                </div>
+            </div>
+            <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-700">
+                <svg id="theme-icon-moon" class="w-5 h-5 hidden dark:block" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                <svg id="theme-icon-sun" class="w-5 h-5 block dark:hidden" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path></svg>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col p-5 max-w-lg mx-auto w-full relative justify-center">
+        
+        <!-- ESTADO 1: INGRESAR DNI -->
+        <div id="panel-identidad" class="card-neo p-8 flex flex-col items-center text-center transition-all">
+            <div class="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-brand-blue mb-6">
+                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-2">Identificación</h2>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mb-8">Ingresa tu número de DNI para acceder a tu perfil de asistencia seguro.</p>
+            
+            <input type="number" id="txt-dni" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 py-4 text-center text-2xl font-bold tracking-widest text-slate-900 dark:text-white outline-none focus:border-brand-blue transition-colors mb-6 shadow-inner" placeholder="Escribe tu DNI">
+            
+            <button onclick="verificarEmpleado()" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/30 active:scale-95 text-lg">
+                Siguiente
+            </button>
+        </div>
+
+        <!-- ESTADO 2: BIOMETRÍA -->
+        <div id="panel-biometria" class="card-neo p-8 hidden flex-col items-center text-center transition-all mt-4 border-t-4 border-t-brand-blue">
+            <h2 id="lbl-nombre" class="text-2xl font-black text-slate-900 dark:text-white mb-1 uppercase leading-tight">Cargando...</h2>
+            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-6">Autenticación Segura</p>
+
+            <div id="box-vincular" class="hidden w-full">
+                <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-4 rounded-xl mb-6">
+                    <p class="text-xs text-orange-800 dark:text-orange-300 font-bold leading-relaxed">Este celular no está vinculado a tu cuenta. Debes registrar tu Huella o Face ID para poder marcar asistencia en el futuro.</p>
+                </div>
+                <button onclick="vincularCelular()" class="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95 text-[15px] flex items-center justify-center gap-3">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
+                    Vincular mi Huella / Face ID
+                </button>
+            </div>
+
+            <div id="box-marcar" class="hidden w-full">
+                <p class="text-xs text-slate-500 mb-6">Al presionar el botón, el sistema verificará tu ubicación GPS y solicitará tu Huella Digital o Face ID.</p>
+                <button onclick="iniciarProcesoMarcado()" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-5 rounded-2xl transition-all shadow-lg shadow-blue-500/40 active:scale-95 text-lg flex items-center justify-center gap-3">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Firmar Asistencia
+                </button>
+            </div>
+            
+            <button onclick="reiniciar()" class="mt-6 text-slate-400 text-xs font-bold underline">Cerrar sesión / Otro usuario</button>
+        </div>
+
+    </main>
+
+    <script>
+        function toggleTheme() { var html = document.documentElement; html.classList.toggle('dark'); }
+
+        function showLoader(txt) { document.getElementById('loader-text').innerText=txt; document.getElementById('loader-overlay').classList.remove('hidden'); document.getElementById('loader-overlay').classList.add('flex'); }
+        function hideLoader() { document.getElementById('loader-overlay').classList.add('hidden'); document.getElementById('loader-overlay').classList.remove('flex'); }
+
+        let dniActual = "";
+
+        // ==== UTILIDADES WEBAUTHN ====
+        function bufferToBase64(buffer) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, ""); }
+        function generarReto() { const reto = new Uint8Array(32); window.crypto.getRandomValues(reto); return reto.buffer; }
+
+        function reiniciar() {
+            dniActual = "";
+            document.getElementById('txt-dni').value = "";
+            document.getElementById('panel-biometria').classList.add('hidden');
+            document.getElementById('panel-identidad').classList.remove('hidden');
+        }
+
+        function verificarEmpleado() {
+            let dni = document.getElementById('txt-dni').value.trim();
+            if(dni.length < 8) return alert("DNI inválido");
+            
+            showLoader("Buscando empleado...");
+            google.script.run.withSuccessHandler(function(res) {
+                hideLoader();
+                if(res.success) {
+                    dniActual = res.dni;
+                    document.getElementById('panel-identidad').classList.add('hidden');
+                    document.getElementById('panel-biometria').classList.remove('hidden');
+                    document.getElementById('panel-biometria').classList.add('flex');
+                    document.getElementById('lbl-nombre').innerText = res.nombre;
+                    
+                    if(res.tieneLlave) {
+                        document.getElementById('box-marcar').classList.remove('hidden');
+                        document.getElementById('box-vincular').classList.add('hidden');
+                    } else {
+                        document.getElementById('box-marcar').classList.add('hidden');
+                        document.getElementById('box-vincular').classList.remove('hidden');
+                    }
+                } else { alert(res.message); }
+            }).verificarDniBiometria(dni);
+        }
+
+        async function vincularCelular() {
+            if (!window.PublicKeyCredential) return alert("Navegador muy antiguo para usar biometría.");
+            if (!navigator.geolocation) return alert("Tu dispositivo no soporta GPS. Es necesario para marcar asistencia.");
+
+            showLoader("Obteniendo GPS para tu primer registro...");
+            navigator.geolocation.getCurrentPosition(
+                async function(position) {
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
+                    hideLoader();
+
+                    try {
+                        const options = {
+                            challenge: generarReto(),
+                            rp: { name: "MAS Digital Asistencia", id: window.location.hostname },
+                            user: { id: Uint8Array.from(dniActual, c => c.charCodeAt(0)), name: dniActual, displayName: dniActual },
+                            pubKeyCredParams: [{alg: -7, type: "public-key"}],
+                            authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                            timeout: 60000, attestation: "direct"
+                        };
+                        const credential = await navigator.credentials.create({ publicKey: options });
+                        const idLlave = bufferToBase64(credential.rawId);
+                        
+                        showLoader("Vinculando y marcando asistencia...");
+                        google.script.run.withSuccessHandler(function(res) {
+                            hideLoader();
+                            alert(res.message);
+                            if(res.success) reiniciar();
+                        }).vincularBiometria(dniActual, idLlave, lat, lng);
+                    } catch(e) { alert("Cancelaste el registro de huella."); }
+                },
+                function(error) { hideLoader(); alert("Error: Debes permitir el acceso a tu ubicación GPS."); },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        // Proceso completo: GPS + Huella
+        function iniciarProcesoMarcado() {
+            if (!navigator.geolocation) {
+                alert("Tu dispositivo o navegador no soporta GPS. No puedes marcar asistencia.");
+                return;
+            }
+
+            showLoader("Obteniendo tu ubicación GPS...");
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    let lat = position.coords.latitude;
+                    let lng = position.coords.longitude;
+                    
+                    // Si el GPS fue exitoso, pedimos la Huella o Face ID
+                    hideLoader();
+                    solicitarHuella(lat, lng);
+                }, 
+                function(error) { 
+                    hideLoader(); 
+                    alert("Error: Debes permitir el acceso a tu ubicación GPS para poder marcar asistencia."); 
+                },
+                { enableHighAccuracy: true, timeout: 10000 }
+            );
+        }
+
+        async function solicitarHuella(lat, lng) {
+            try {
+                const options = { challenge: generarReto(), timeout: 60000, userVerification: "required" };
+                const assertion = await navigator.credentials.get({ publicKey: options });
+                const idLlaveUsada = bufferToBase64(assertion.rawId);
+                
+                showLoader("Validando GPS y Firma Criptográfica...");
+                
+                google.script.run.withSuccessHandler(function(res) {
+                    hideLoader();
+                    alert(res.message);
+                    if(res.success) reiniciar();
+                }).marcarAsistenciaBiometrica(dniActual, idLlaveUsada, lat, lng);
+                
+            } catch (e) { 
+                alert("Cancelaste la operación o falló la validación de Huella / Face ID."); 
+            }
+        }
+    </script>
+</body>
+</html>

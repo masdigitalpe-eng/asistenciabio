@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MAS Digital | Admin Biometría y GPS</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <script>
+        // 🛑🛑 URL DE LA APLICACIÓN WEB DEL CLIENTE 🛑🛑
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/TU_URL_AQUI/exec";
+
+        window.google = {
+            script: {
+                run: {
+                    withSuccessHandler: function(cb) { this._success = cb; return this; },
+                    withFailureHandler: function(cb) { this._failure = cb; return this; },
+                    _callApi: function(accion, payload) {
+                        var self = this; if (!payload) payload = {};
+                        fetch(URL_BACKEND_GOOGLE, { method: 'POST', body: JSON.stringify({accion: accion, payload: payload}), headers: {"Content-Type": "text/plain;charset=utf-8"} })
+                        .then(r => r.json()).then(data => { if (self._success) self._success(data); })
+                        .catch(err => { if (self._failure) self._failure(err); });
+                    },
+                    getConfig: function() { this._callApi('getConfig'); },
+                    obtenerTareoHoy: function() { this._callApi('obtenerTareoHoy'); },
+                    registrarEmpleado: function(data) { this._callApi('registrarEmpleado', { data: data }); },
+                    actualizarEstadoManual: function(dni, estado) { this._callApi('actualizarEstadoManual', { dni: dni, estado: estado }); },
+                    obtenerReporteMensual: function() { this._callApi('obtenerReporteMensual'); },
+                    obtenerEmpleados: function() { this._callApi('obtenerEmpleados'); },
+                    saveConfig: function(old, data) { this._callApi('saveConfig', {oldPass: old, data: data}); }
+                }
+            }
+        };
+    </script>
+    <script>
+        tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Montserrat', 'sans-serif'] }, colors: { brand: { blue: '#2563EB', purple: '#8B5CF6', orange: '#F97316' }, slate: { 850: '#151e2e', 900: '#0f172a' } } } } }
+    </script>
+    <style>
+        body { background-color: #f8fafc; color: #0f172a; transition: background-color 0.3s ease, color 0.3s ease; }
+        .dark body { background-color: #0f172a; color: #f8fafc; } 
+        .input-modern { width: 100%; padding: 0.75rem 1rem; font-size: 0.875rem; border-radius: 0.5rem; border: 1px solid #cbd5e1; background-color: #f8fafc; color: #0f172a; outline: none; }
+        .input-modern:focus { border-color: #2563EB; background-color: #ffffff; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+        .dark .input-modern { border-color: #334155; background-color: #1e293b; color: #f1f5f9; }
+        .dark .input-modern:focus { border-color: #3b82f6; background-color: #0f172a; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2); }
+        .label-modern { display: block; font-size: 0.75rem; font-weight: 600; color: #475569; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .dark .label-modern { color: #94a3b8; }
+        .section-card { background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .dark .section-card { background-color: #1e293b; border-color: #334155; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3); }
+        .nav-pill { padding: 0.625rem 1.25rem; font-size: 0.875rem; font-weight: 600; border-radius: 0.5rem; color: #64748b; cursor:pointer; transition: all 0.2s;}
+        .nav-pill:hover { background-color: #e2e8f0; }
+        .dark .nav-pill:hover { background-color: #334155; }
+        .nav-pill.active { background-color: #2563EB; color: #ffffff; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.3); }
+        .dark .nav-pill.active { background-color: #3b82f6; color: #ffffff; }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <div id="loader-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-sm transition-all">
+        <div class="flex flex-col items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-xl border border-gray-100 dark:border-slate-700">
+            <svg class="animate-spin h-10 w-10 text-brand-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            <p class="text-slate-700 dark:text-slate-200 font-semibold text-sm uppercase" id="loader-text">Procesando...</p>
+        </div>
+    </div>
+
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="flex flex-col mt-1">
+                    <div class="flex items-baseline leading-none">
+                        <span class="font-display font-[900] text-2xl text-slate-900 dark:text-white tracking-tighter">MAS</span>
+                        <span class="font-display font-[700] text-2xl text-slate-900 dark:text-white tracking-tighter ml-1">Digital</span>
+                        <span class="w-2 h-2 bg-brand-blue rounded-full ml-1 relative top-[4px]"></span>
+                    </div>
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">Panel Biometría + GPS</span>
+                </div>
+            </div>
+            <nav class="flex flex-wrap justify-center gap-2 bg-slate-100 dark:bg-slate-800 p-1.5 rounded-xl">
+                <button onclick="switchTab('manual')" id="tab-manual" class="nav-pill active">Tareo Hoy</button>
+                <button onclick="switchTab('reportes')" id="tab-reportes" class="nav-pill">Reporte Mes</button>
+                <button onclick="switchTab('directorio')" id="tab-directorio" class="nav-pill">Directorio</button>
+                <button onclick="switchTab('registro')" id="tab-registro" class="nav-pill">Nuevo Ingreso</button>
+                <button onclick="switchTab('ajustes')" id="tab-ajustes" class="nav-pill">Ajustes & GPS</button>
+                <button onclick="document.documentElement.classList.toggle('dark')" class="w-9 h-9 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-slate-500 dark:text-slate-300 ml-2">
+                    🌓
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-grow p-4 md:p-8 max-w-7xl mx-auto w-full">
+
+        <!-- 1. TAREO HR -->
+        <section id="view-manual" class="h-full flex-col">
+            <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h2 class="text-3xl font-black mb-1 text-slate-900 dark:text-white">Panel de Asistencia HR</h2>
+                    <p class="text-slate-500 text-sm">Visualización de asistencia validada por Biometría y Geolocalización.</p>
+                </div>
+                <button onclick="cargarTareoHoy()" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold py-2 px-4 rounded-xl flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"><svg class="w-5 h-5 text-brand-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg> Sincronizar</button>
+            </div>
+            
+            <div class="bg-white dark:bg-slate-900 rounded-[1rem] overflow-x-auto border border-slate-200 dark:border-slate-800 border-t-4 border-t-brand-blue">
+                <table class="w-full text-left text-sm whitespace-nowrap min-w-[600px]">
+                    <thead class="bg-slate-50 dark:bg-slate-900/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-200 dark:border-slate-800">
+                        <tr><th class="py-4 px-6">Identificación</th><th class="py-4 px-6">Empleado</th><th class="py-4 px-6 text-right">Estado Operativo</th></tr>
+                    </thead>
+                    <tbody id="tareo-tbody" class="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tr><td colspan="3" class="py-10 text-center text-slate-500">Pulse Sincronizar Datos para cargar el tareo de hoy.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- 2. REPORTE MENSUAL -->
+        <section id="view-reportes" class="hidden h-full flex-col">
+            <div class="mb-6 flex justify-between items-end">
+                <h2 class="text-3xl font-black mb-1 text-slate-900 dark:text-white">Reporte Mensual</h2>
+                <button onclick="cargarReporteMensual()" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold py-2 px-4 rounded-xl flex items-center gap-2">Actualizar</button>
+            </div>
+            <div class="section-card overflow-x-auto border-t-4 border-t-brand-purple">
+                <table class="w-full text-left text-sm whitespace-nowrap min-w-[600px]">
+                    <thead class="bg-slate-50 dark:bg-slate-900/50 text-[11px] font-bold text-slate-500 uppercase border-b border-slate-200 dark:border-slate-700">
+                        <tr><th class="py-4 px-6">Empleado</th><th class="py-4 px-6 text-green-600">Asistió</th><th class="py-4 px-6 text-red-600">Faltas</th><th class="py-4 px-6 text-yellow-600">Tarde</th><th class="py-4 px-6 text-orange-600">Minutos</th></tr>
+                    </thead>
+                    <tbody id="reporte-tbody" class="divide-y divide-slate-100 dark:divide-slate-800"><tr><td colspan="5" class="p-10 text-center">Pulse Actualizar para ver el resumen del mes.</td></tr></tbody>
+                </table>
+            </div>
+        </section>
+        
+        <!-- 3. DIRECTORIO -->
+        <section id="view-directorio" class="hidden h-full flex-col">
+            <h2 class="text-3xl font-black mb-6 text-slate-900 dark:text-white">Estado de Dispositivos</h2>
+            <div class="mb-6"><button onclick="cargarDirectorio()" class="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm font-bold py-2 px-4 rounded-xl">Descargar Directorio</button></div>
+            <div id="grid-directorio" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+        </section>
+
+        <!-- 4. REGISTRO -->
+        <section id="view-registro" class="hidden pb-12">
+            <h2 class="text-3xl font-black mb-2 text-slate-900 dark:text-white">Nuevo Ingreso</h2>
+            <p class="text-slate-500 text-sm mb-6">El sistema le enviará un correo pidiéndole que registre su Huella Digital desde su celular.</p>
+            
+            <form id="form-registro" class="section-card p-6 md:p-10 max-w-4xl border-t-4 border-t-brand-blue">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div><label class="label-modern">Nombres <span class="text-red-500">*</span></label><input type="text" id="reg-nombres" class="input-modern uppercase"></div>
+                    <div><label class="label-modern">Apellidos <span class="text-red-500">*</span></label><input type="text" id="reg-apellidos" class="input-modern uppercase"></div>
+                    <div><label class="label-modern">DNI <span class="text-red-500">*</span></label><input type="tel" maxlength="8" id="reg-dni" class="input-modern font-mono tracking-widest"></div>
+                    <div><label class="label-modern">Correo (Para aviso) <span class="text-red-500">*</span></label><input type="email" id="reg-email" class="input-modern lowercase"></div>
+                    <div><label class="label-modern">Celular</label><input type="tel" id="reg-celular" class="input-modern font-mono"></div>
+                    <div><label class="label-modern">Cargo</label><input type="text" id="reg-cargo" class="input-modern uppercase"></div>
+                </div>
+                <div class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                    <button type="button" onclick="enviarRegistro()" class="bg-brand-blue hover:bg-blue-600 transition-colors text-white font-bold py-4 px-10 rounded-2xl shadow-lg">Registrar y Enviar Correo</button>
+                </div>
+            </form>
+        </section>
+        
+        <!-- 5. AJUSTES Y GPS -->
+        <section id="view-ajustes" class="hidden pb-12">
+            <div class="flex justify-between items-end mb-6">
+                <h2 class="text-3xl font-black text-slate-900 dark:text-white">Configuración y GPS</h2>
+                <button onclick="cargarAjustes()" class="bg-slate-200 dark:bg-slate-700 text-xs font-bold py-2 px-4 rounded-lg">Cargar Config</button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+                <!-- Reglas Generales -->
+                <div class="section-card p-6 border-t-4 border-t-brand-purple">
+                    <h3 class="font-bold text-lg mb-4 text-slate-900 dark:text-white">Reglas de Asistencia</h3>
+                    <div class="space-y-4">
+                        <div><label class="label-modern">Nombre Empresa (Para Correos)</label><input type="text" id="conf-empresa" class="input-modern"></div>
+                        <div><label class="label-modern">Hora de Ingreso</label><input type="time" id="conf-hora" class="input-modern font-mono"></div>
+                        <div><label class="label-modern">Tolerancia (Minutos)</label><input type="number" id="conf-tolerancia" class="input-modern"></div>
+                        <div><label class="label-modern">Contraseña Admin (Confirmación) <span class="text-red-500">*</span></label><input type="password" id="conf-oldpass" class="input-modern" placeholder="Ingrese clave actual para guardar"></div>
+                    </div>
+                </div>
+
+                <!-- Geovalla -->
+                <div class="section-card p-6 border-t-4 border-t-brand-orange">
+                    <h3 class="font-bold text-lg mb-1 text-slate-900 dark:text-white">Ubicación GPS de la Empresa</h3>
+                    <p class="text-xs text-slate-500 mb-4">El empleado no podrá marcar si su celular está fuera de este radio.</p>
+                    <div class="space-y-4">
+                        <div><label class="label-modern">Latitud</label><input type="number" step="any" id="conf-lat" class="input-modern font-mono" placeholder="Ej: -12.046374"></div>
+                        <div><label class="label-modern">Longitud</label><input type="number" step="any" id="conf-lng" class="input-modern font-mono" placeholder="Ej: -77.042793"></div>
+                        <div><label class="label-modern">Radio Permitido (En Metros)</label><input type="number" id="conf-radio" class="input-modern" placeholder="Recomendado: 30 a 50"></div>
+                        
+                        <button onclick="obtenerGPSActual()" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-lg text-sm border border-slate-300 dark:border-slate-600">📍 Usar mi ubicación actual</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="max-w-4xl mt-6">
+                <button onclick="guardarConfiguracion()" class="bg-brand-blue hover:bg-blue-600 transition-colors text-white font-bold py-4 w-full rounded-2xl shadow-lg text-lg">Guardar Configuración</button>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        var views = ['manual', 'reportes', 'directorio', 'registro', 'ajustes'];
+        var isTareoLoaded = false;
+        
+        function switchTab(viewId) {
+            views.forEach(v => {
+                document.getElementById('view-' + v).classList.add('hidden');
+                document.getElementById('tab-' + v).classList.remove('active');
+            });
+            document.getElementById('view-' + viewId).classList.remove('hidden');
+            document.getElementById('tab-' + viewId).classList.add('active');
+            if (viewId === 'manual' && !isTareoLoaded) cargarTareoHoy();
+            if (viewId === 'ajustes') cargarAjustes();
+        }
+
+        function showLoader(t) { document.getElementById('loader-text').innerText=t; document.getElementById('loader-overlay').classList.remove('hidden'); document.getElementById('loader-overlay').classList.add('flex'); }
+        function hideLoader() { document.getElementById('loader-overlay').classList.add('hidden'); document.getElementById('loader-overlay').classList.remove('flex'); }
+
+        const LEYENDA = [ 
+            { id: '-', label: 'Sin Marcar', c: 'bg-slate-100 text-slate-500 border-slate-200' }, 
+            { id: 'A', label: 'Asistió', c: 'bg-green-100 text-green-700 border-green-200' }, 
+            { id: 'T', label: 'Tarde', c: 'bg-yellow-100 text-yellow-700 border-yellow-200' }, 
+            { id: 'F', label: 'Falta', c: 'bg-red-100 text-red-700 border-red-200' },
+            { id: 'DL', label: 'Día Libre', c: 'bg-blue-50 text-blue-700 border-blue-200' },
+            { id: 'DM', label: 'Desc. Médico', c: 'bg-teal-50 text-teal-700 border-teal-200' }
+        ];
+        function getCls(id) { for(let i=0;i<LEYENDA.length;i++) if(LEYENDA[i].id===id) return LEYENDA[i].c; return LEYENDA[0].c; }
+
+        function cargarTareoHoy() {
+            showLoader("Sincronizando...");
+            google.script.run.withSuccessHandler(function(emps) {
+                hideLoader(); isTareoLoaded = true;
+                var tb = document.getElementById('tareo-tbody'); tb.innerHTML = '';
+                if(!emps||emps.length===0) { tb.innerHTML = '<tr><td colspan="3" class="py-10 text-center">Sin registros o la planilla está vacía.</td></tr>'; return; }
+                
+                emps.forEach(e => {
+                    var sel = '<select onchange="cambiarEstado(\''+e.dni+'\', this)" class="w-full pl-4 pr-8 py-2.5 text-sm font-bold rounded-xl border outline-none appearance-none cursor-pointer ' + getCls(e.estado) + '">';
+                    LEYENDA.forEach(l => { sel += '<option value="'+l.id+'" class="bg-white text-black" '+(e.estado===l.id?"selected":"")+'>'+l.id+' - '+l.label+'</option>'; }); sel+='</select>';
+                    
+                    var extratime = e.horaExacta ? `<div class="mt-1 text-[11px] text-slate-500 font-mono text-left pl-1">Hora: ${e.horaExacta} ${e.minutosTarde>0?'(+'+e.minutosTarde+'m)':''}</div>` : "";
+                    
+                    tb.innerHTML += `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800">${e.dni}<br><span class="text-[11px] text-brand-blue">${e.codigo}</span></td><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800 font-bold dark:text-slate-200">${e.nombres}</td><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800 text-right"><div class="w-48 inline-block relative">${sel}${extratime}</div></td></tr>`;
+                });
+            }).obtenerTareoHoy();
+        }
+
+        function cambiarEstado(dni, el) { 
+            el.className="w-full pl-4 pr-8 py-2.5 text-sm font-bold rounded-xl border outline-none appearance-none cursor-pointer "+getCls(el.value); 
+            showLoader("Actualizando...");
+            google.script.run.withSuccessHandler(r => { 
+                hideLoader(); 
+                if(!r.success) { alert("Error al actualizar"); cargarTareoHoy(); }
+            }).actualizarEstadoManual(dni,el.value); 
+        }
+
+        function enviarRegistro() {
+            var data = { 
+                nombres: document.getElementById('reg-nombres').value, apellidos: document.getElementById('reg-apellidos').value, 
+                dni: document.getElementById('reg-dni').value, email: document.getElementById('reg-email').value, 
+                celular: document.getElementById('reg-celular').value, cargo: document.getElementById('reg-cargo').value 
+            };
+            if(!data.nombres || !data.dni || !data.email) return alert("Faltan datos obligatorios (*)");
+            showLoader("Registrando...");
+            google.script.run.withSuccessHandler(r => { 
+                hideLoader(); alert(r.message); 
+                if(r.success) document.getElementById('form-registro').reset(); 
+            }).registrarEmpleado(data);
+        }
+
+        function cargarDirectorio() {
+            showLoader("Cargando Directorio...");
+            google.script.run.withSuccessHandler(emps => {
+                hideLoader(); let grid = document.getElementById('grid-directorio'); grid.innerHTML = '';
+                emps.forEach(e => {
+                    let badge = e.biometria === "VINCULADO" ? `<span class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold border border-green-200">Biometría Activa</span>` : `<span class="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[10px] font-bold border border-orange-200">Biometría Pendiente</span>`;
+                    grid.innerHTML += `<div class="section-card p-5 flex flex-col gap-2 hover:shadow-md transition-shadow"><h4 class="font-bold text-slate-800 dark:text-slate-100">${e.nombres} ${e.apellidos}</h4><p class="text-xs text-slate-500">${e.dni} | ${e.cargo}</p><div>${badge}</div></div>`;
+                });
+            }).obtenerEmpleados();
+        }
+        
+        function cargarReporteMensual() {
+            showLoader("Calculando Mes...");
+            google.script.run.withSuccessHandler(rep => {
+                hideLoader(); let tb = document.getElementById('reporte-tbody'); tb.innerHTML = '';
+                if(!rep || rep.length === 0) { tb.innerHTML = '<tr><td colspan="5" class="p-10 text-center">Sin datos.</td></tr>'; return; }
+                rep.forEach(e => { 
+                    tb.innerHTML += `<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50"><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800 font-bold dark:text-slate-200">${e.nombres}</td><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800 font-mono">${e.asistencias}</td><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800 font-mono">${e.faltas}</td><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800 font-mono">${e.tardanzas}</td><td class="py-4 px-6 border-b border-slate-100 dark:border-slate-800 font-mono">${e.minutosTarde}</td></tr>`; 
+                });
+            }).obtenerReporteMensual();
+        }
+
+        function obtenerGPSActual() {
+            if (navigator.geolocation) {
+                showLoader("Leyendo GPS...");
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        hideLoader();
+                        document.getElementById('conf-lat').value = position.coords.latitude;
+                        document.getElementById('conf-lng').value = position.coords.longitude;
+                        alert("Coordenadas obtenidas. Recuerda Guardar la Configuración.");
+                    }, 
+                    function(error) { hideLoader(); alert("Error GPS: " + error.message); },
+                    { enableHighAccuracy: true }
+                );
+            } else { alert("Tu navegador no soporta GPS."); }
+        }
+
+        function cargarAjustes() {
+            showLoader("Cargando config...");
+            google.script.run.withSuccessHandler(c => {
+                hideLoader();
+                document.getElementById('conf-empresa').value = c.nombreEmpresa;
+                document.getElementById('conf-hora').value = c.horaIngreso;
+                document.getElementById('conf-tolerancia').value = c.tolerancia;
+                document.getElementById('conf-lat').value = c.latitud;
+                document.getElementById('conf-lng').value = c.longitud;
+                document.getElementById('conf-radio').value = c.radio;
+            }).getConfig();
+        }
+
+        function guardarConfiguracion() {
+            var oldPass = document.getElementById('conf-oldpass').value;
+            if(!oldPass) return alert("Se requiere la contraseña actual para guardar.");
+            
+            var data = {
+                nombreEmpresa: document.getElementById('conf-empresa').value,
+                horaIngreso: document.getElementById('conf-hora').value,
+                tolerancia: document.getElementById('conf-tolerancia').value,
+                latitud: document.getElementById('conf-lat').value,
+                longitud: document.getElementById('conf-lng').value,
+                radio: document.getElementById('conf-radio').value
+            };
+            
+            showLoader("Guardando...");
+            google.script.run.withSuccessHandler(r => {
+                hideLoader();
+                alert(r.success ? "Guardado correctamente" : "Error: " + r.message);
+                if(r.success) document.getElementById('conf-oldpass').value = '';
+            }).saveConfig(oldPass, data);
+        }
+
+        // Init
+        setTimeout(cargarTareoHoy, 500);
+    </script>
+</body>
+</html>
