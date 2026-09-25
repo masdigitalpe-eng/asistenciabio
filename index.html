@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MAS Digital | Sistema Corporativo</title>
-
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
@@ -16,7 +16,7 @@
 
     <script>
         // 🛑🛑 ¡ATENCIÓN! PEGA AQUÍ LA URL GENERADA EN LA CUENTA DEL CLIENTE 🛑🛑
-        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbx0M7BGba7uY0jCbU8eqOar3QJJoTzMrAKSo9KFudOeJA8DQHm8QxVg93ZfG1CJYeFF/exec";
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbxhQEzcIjNpAj_eDJKao21N1NaqbeoP5EF_BYiBHG4_zPwtNHGHSt3iM61YiSkr1Gvu/exec";
 
         window.google = {
             script: {
@@ -29,8 +29,8 @@
                         var form = new URLSearchParams();
                         form.append('accion', accion);
                         form.append('payload', JSON.stringify(payload));
-
-                        // ✅ CORRECCIÓN DE VELOCIDAD: Se agregó redirect: 'follow'
+                        
+                        // 🔥 REDIRECT FOLLOW PARA EXTREMA VELOCIDAD 🔥
                         fetch(URL_BACKEND_GOOGLE, { method: 'POST', redirect: 'follow', body: JSON.stringify({accion: accion, payload: payload}), headers: {"Content-Type": "text/plain;charset=utf-8"} })
                         .then(function(r) { return r.json(); })
                         .then(function(data) { if (self._success) self._success(data); })
@@ -55,7 +55,7 @@
             var cacheTimeKey = 'licencia_masdigital_time';
             var now = new Date().getTime();
             var tiempoExpiracion = 10 * 60 * 1000; 
-
+            
             var cached = localStorage.getItem(cacheKey);
             var cachedTime = localStorage.getItem(cacheTimeKey);
 
@@ -69,7 +69,7 @@
             document.getElementById('loader-text').innerText = "Verificando licencia...";
             document.getElementById('loader-overlay').classList.remove('hidden');
             document.getElementById('loader-overlay').classList.add('flex');
-
+            
             google.script.run
                 .withSuccessHandler(function(licencia) {
                     document.getElementById('loader-overlay').classList.add('hidden');
@@ -153,7 +153,7 @@
 
         select option { background-color: #ffffff; color: #0f172a; font-weight: 500; }
         .dark select option { background-color: #1e293b; color: #f8fafc; }
-
+        
         /* Contenedor del mapa */
         #map-container { height: 350px; width: 100%; border-radius: 0.75rem; z-index: 10; border: 1px solid #e2e8f0; }
         .dark #map-container { border-color: #334155; }
@@ -228,7 +228,7 @@
     <!-- LOGOTIPO ORIGINAL -->
     <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors duration-300">
         <div class="max-w-7xl mx-auto px-4 md:px-8 py-3 flex flex-col md:flex-row justify-between items-center gap-4">
-
+            
             <div class="flex items-center gap-3 select-none">
                 <svg viewBox="0 0 280 150" class="h-10 w-auto" xmlns="http://www.w3.org/2000/svg">
                     <defs>
@@ -859,7 +859,7 @@
 
         function initMap(lat,lng) { if(typeof L==='undefined') return; setTimeout(function(){ if(!mapInitialized) { mapInstance=L.map('map-container').setView([lat,lng],17); L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',{maxZoom:20,subdomains:['mt0','mt1','mt2','mt3']}).addTo(mapInstance); mapMarker=L.marker([lat,lng],{draggable:true}).addTo(mapInstance); mapMarker.on('dragend',function(){var p=mapMarker.getLatLng(); document.getElementById('conf-lat').value=p.lat.toFixed(6); document.getElementById('conf-lng').value=p.lng.toFixed(6);}); mapInstance.on('click',function(e){mapMarker.setLatLng(e.latlng); document.getElementById('conf-lat').value=e.latlng.lat.toFixed(6); document.getElementById('conf-lng').value=e.latlng.lng.toFixed(6);}); mapInitialized=true; mapInstance.invalidateSize(); } else { mapInstance.setView([lat,lng],17); mapMarker.setLatLng([lat,lng]); mapInstance.invalidateSize(); } },300); }
         function centrarEnMiUbicacion() { showLoader("Ubicando..."); if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(pos){hideLoader(); var lat=pos.coords.latitude; var lng=pos.coords.longitude; document.getElementById('conf-lat').value=lat.toFixed(6); document.getElementById('conf-lng').value=lng.toFixed(6); if(mapInitialized){mapInstance.setView([lat,lng],17); mapMarker.setLatLng([lat,lng]); mapInstance.invalidateSize();}else initMap(lat,lng);},function(){hideLoader(); showToast("GPS denegado",true);},{enableHighAccuracy:true});} }
-        function guardarConfiguracion() { var pass=document.getElementById('conf-pass').value.trim(); var data={horaIngreso:document.getElementById('conf-hora').value, tolerancia:parseInt(document.getElementById('conf-tolerancia').value)||0, nombreEmpresa:document.getElementById('conf-empresa').value.trim(), password:pass, latitud:parseFloat(document.getElementById('conf-lat').value)|| -12.04, longitud:parseFloat(document.getElementById('conf-lng').value)|| -77.04, radio:parseInt(document.getElementById('conf-radio').value)||15}; showLoader("Aplicando..."); google.script.run.withSuccessHandler(function(r){hideLoader(); if(r.success){showToast("Guardado"); if(pass) currentAuthPass=pass; document.getElementById('conf-pass').value="";}else showToast(r.message,true);}).saveConfig(currentAuthPass,data); }
+        function guardarConfiguracion() { var pass=document.getElementById('conf-pass').value.trim(); var data={horaIngreso:document.getElementById('conf-hora').value, tolerancia:parseInt(document.getElementById('conf-tolerancia').value)||0, nombreEmpresa:document.getElementById('conf-empresa').value.trim(), password:pass, latitud:parseFloat(document.getElementById('conf-lat').value)|| -12.04, longitud:parseFloat(document.getElementById('conf-lng').value)|| -77.04, radio:parseInt(document.getElementById('conf-radio').value)||30}; showLoader("Aplicando..."); google.script.run.withSuccessHandler(function(r){hideLoader(); if(r.success){showToast("Guardado"); if(pass) currentAuthPass=pass; document.getElementById('conf-pass').value="";}else showToast(r.message,true);}).saveConfig(currentAuthPass,data); }
 
         window.onload = function() { 
             verificarAcceso(function() { switchTab('manual'); }); 
