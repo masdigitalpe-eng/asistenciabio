@@ -12,7 +12,7 @@
 
     <script>
         // 🛑🛑 ¡ATENCIÓN! PEGA AQUÍ LA MISMA URL QUE EN EL INDEX 🛑🛑
-        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbx0M7BGba7uY0jCbU8eqOar3QJJoTzMrAKSo9KFudOeJA8DQHm8QxVg93ZfG1CJYeFF/exec";
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbxhQEzcIjNpAj_eDJKao21N1NaqbeoP5EF_BYiBHG4_zPwtNHGHSt3iM61YiSkr1Gvu/exec";
 
         window.google = {
             script: {
@@ -26,7 +26,7 @@
                         form.append('accion', accion);
                         form.append('payload', JSON.stringify(payload));
 
-                        // ✅ CORRECCIÓN DE VELOCIDAD: Se agregó redirect: 'follow'
+                        // 🔥 REDIRECT FOLLOW PARA VELOCIDAD DE CONSULTA 🔥
                         fetch(URL_BACKEND_GOOGLE, { method: 'POST', redirect: 'follow', body: JSON.stringify({accion: accion, payload: payload}), headers: {"Content-Type": "text/plain;charset=utf-8"} })
                         .then(function(r) { return r.json(); })
                         .then(function(data) { if (self._success) self._success(data); })
@@ -181,7 +181,7 @@
 
     <main class="flex-grow flex flex-col p-5 max-w-lg mx-auto w-full relative">
 
-        <!-- 1. BIOMETRÍA (REEMPLAZO DE ESCÁNER) -->
+        <!-- 1. BIOMETRÍA (REEMPLAZO DE ESCÁNER QR) -->
         <section id="view-biometria" class="flex-grow flex flex-col items-center justify-center">
             
             <div id="panel-identidad" class="w-full">
@@ -212,7 +212,7 @@
             <div id="panel-accion" class="w-full hidden">
                 <div class="text-center mb-8">
                     <h2 id="lbl-nombre" class="text-2xl font-black text-slate-900 dark:text-white mb-2 uppercase leading-tight tracking-tight">HOLA...</h2>
-                    <p class="text-sm text-slate-500 dark:text-slate-400 px-4">El sistema validará tu ubicación por GPS antes de solicitar tu huella.</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 px-4">El sistema validará tu ubicación por GPS antes de solicitar tu huella o FaceID.</p>
                 </div>
                 
                 <div class="card-neo p-8 w-full max-w-sm mx-auto relative mb-6">
