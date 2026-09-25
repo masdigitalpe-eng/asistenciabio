@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Asistencia Seguro | MAS Digital</title>
-    
+    <title>App Empleados | MAS Digital</title>
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
@@ -20,161 +20,407 @@
                     withSuccessHandler: function(cb) { this._success = cb; return this; },
                     withFailureHandler: function(cb) { this._failure = cb; return this; },
                     _callApi: function(accion, payload) {
-                        var self = this; if (!payload) payload = {};
-                        fetch(URL_BACKEND_GOOGLE, { method: 'POST', body: JSON.stringify({accion: accion, payload: payload}), headers: {"Content-Type": "text/plain;charset=utf-8"} })
-                        .then(r => r.json()).then(data => { if (self._success) self._success(data); })
-                        .catch(err => { if (self._failure) self._failure(err); });
+                        var self = this;
+                        if (!payload) payload = {};
+                        var form = new URLSearchParams();
+                        form.append('accion', accion);
+                        form.append('payload', JSON.stringify(payload));
+
+                        // ✅ CORRECCIÓN DE VELOCIDAD: Se agregó redirect: 'follow'
+                        fetch(URL_BACKEND_GOOGLE, { method: 'POST', redirect: 'follow', body: JSON.stringify({accion: accion, payload: payload}), headers: {"Content-Type": "text/plain;charset=utf-8"} })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) { if (self._success) self._success(data); })
+                        .catch(function(err) { if (self._failure) self._failure(err); });
                     },
+                    getConfig: function() { this._callApi('getConfig'); },
+                    obtenerTareoHoy: function() { this._callApi('obtenerTareoHoy'); },
+                    obtenerMiTareoMensual: function(dni, offset) { this._callApi('obtenerMiTareoMensual', { dni: dni, offset: offset }); },
+                    verificarLicencia: function() { this._callApi('verificarLicencia'); },
+                    
+                    // NUEVOS MÉTODOS BIOMÉTRICOS
                     verificarDniBiometria: function(dni) { this._callApi('verificarDniBiometria', { dni: dni }); },
                     vincularBiometria: function(dni, llave, lat, lng) { this._callApi('vincularBiometria', { dni: dni, llave: llave, lat: lat, lng: lng }); },
                     marcarAsistenciaBiometrica: function(dni, llave, lat, lng) { this._callApi('marcarAsistenciaBiometrica', { dni: dni, llave: llave, lat: lat, lng: lng }); }
                 }
             }
         };
+
+        // Lógica de Bloqueo desde GitHub con CACHÉ OPTIMIZADO (30 minutos sin bloqueos visuales)
+        function verificarAcceso(callback) {
+            var cacheKey = 'licencia_masdigital_estado_emp';
+            var cacheTimeKey = 'licencia_masdigital_time_emp';
+            var now = new Date().getTime();
+
+            var cached = localStorage.getItem(cacheKey);
+            var cachedTime = localStorage.getItem(cacheTimeKey);
+
+            if (cached && cachedTime && (now - parseInt(cachedTime) < 30 * 60 * 1000)) {
+                ejecutarAccionLicencia(JSON.parse(cached));
+                if(callback) callback();
+                return;
+            }
+
+            document.getElementById('loader-text').innerText = "Conectando...";
+            document.getElementById('loader-overlay').classList.remove('hidden');
+            document.getElementById('loader-overlay').classList.add('flex');
+
+            google.script.run
+                .withSuccessHandler(function(licencia) {
+                    document.getElementById('loader-overlay').classList.add('hidden');
+                    document.getElementById('loader-overlay').classList.remove('flex');
+                    if (licencia) { localStorage.setItem(cacheKey, JSON.stringify(licencia)); localStorage.setItem(cacheTimeKey, now.toString()); }
+                    ejecutarAccionLicencia(licencia);
+                    if(callback) callback();
+                })
+                .withFailureHandler(function() {
+                    document.getElementById('loader-overlay').classList.add('hidden');
+                    document.getElementById('loader-overlay').classList.remove('flex');
+                    if(callback) callback(); 
+                })
+                .verificarLicencia();
+        }
+
+        function ejecutarAccionLicencia(licencia) {
+            if (licencia && licencia.estado === 'SUSPENDIDO') {
+                document.body.innerHTML = '<div style="font-family: Arial, sans-serif; text-align:center; padding:40px 20px; background-color:#0f172a; color:white; height:100vh; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center; align-items:center;"><div style="background:#1e293b; padding:40px; border-radius:16px; max-width:400px; border: 1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);"><div style="display:flex; justify-content:center; align-items:center; margin-bottom: 25px;"><span style="font-weight: 900; font-size: 26px; margin-left: 10px; letter-spacing: -1px; font-family:\'Montserrat\', sans-serif;">MAS Digital</span><span style="width: 8px; height: 8px; background: #F97316; border-radius: 50%; margin-left: 4px;"></span></div><div style="font-size:48px; margin-bottom:10px;">🔒</div><h1 style="color:#ef4444; margin-top:0; font-size:24px;">Suscripción Vencida</h1><p style="color:#94a3b8; font-size:14px; line-height:1.6;">El acceso a este sistema ha sido restringido. Por favor, regularice su suscripción.</p><div style="margin-top:30px; padding-top:20px; border-top:1px solid #334155;"><p style="margin:0; color:#cbd5e1; font-size:13px; margin-bottom:10px;">Comunícate con soporte:</p><a href="https://wa.me/51931355694" target="_blank" style="display:inline-block; background:#2563EB; color:white; text-decoration:none; padding:12px 24px; border-radius:8px; font-weight:bold; font-size:16px;">📞 931 355 694</a></div></div></div>';
+                return;
+            }
+            if (licencia && licencia.estado === 'AVISO' && licencia.mensaje) {
+                var existingBanner = document.getElementById('licencia-banner-emp');
+                if(!existingBanner) {
+                    var banner = document.createElement('div');
+                    banner.id = 'licencia-banner-emp';
+                    banner.innerHTML = "⚠️ <b>Aviso:</b> " + licencia.mensaje;
+                    banner.style.cssText = "background-color:#f59e0b; color:#000; text-align:center; padding:12px 20px; font-size:14px; position:sticky; top:0; z-index:999999; width:100%; font-family:sans-serif;";
+                    document.body.prepend(banner);
+                }
+            }
+        }
     </script>
     <script>
-        tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Montserrat', 'sans-serif'] }, colors: { brand: { blue: '#2563EB', purple: '#8B5CF6', orange: '#F97316' }, slate: { 850: '#151e2e', 900: '#0f172a' } } } } }
+        tailwind.config = { darkMode: 'class', theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'], display: ['Montserrat', 'sans-serif'] }, colors: { brand: { blue: '#2563EB', purple: '#8B5CF6', orange: '#F97316', pink: '#EC4899' }, slate: { 850: '#151e2e', 900: '#0f172a' } } } } }
     </script>
     <style>
         body { background-color: #f1f5f9; color: #0f172a; transition: background-color 0.3s ease, color 0.3s ease; -webkit-tap-highlight-color: transparent; }
         .dark body { background-color: #020617; color: #f8fafc; } 
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .card-neo { background: #ffffff; border-radius: 1.5rem; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05); border: 1px solid #f1f5f9; }
         .dark .card-neo { background: #0f172a; border-color: #1e293b; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3); }
+
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.25rem; color: #64748b; font-weight: 600; font-size: 0.7rem; transition: all 0.2s; cursor:pointer;}
+        .nav-item svg { width: 1.5rem; height: 1.5rem; transition: all 0.2s; }
+        .nav-item.active { color: #2563EB; }
+        .nav-item.active svg { transform: translateY(-2px); stroke-width: 2.5px; }
+        .dark .nav-item { color: #64748b; }
+        .dark .nav-item.active { color: #3b82f6; }
+
+        .input-modern {
+            width: 100%; padding: 0.75rem 1rem; font-size: 1.25rem; border-radius: 0.5rem;
+            border: 1px solid #cbd5e1; background-color: #f8fafc; color: #0f172a;
+            transition: all 0.2s ease-in-out; outline: none; text-align: center; font-weight: bold; letter-spacing: 0.1em;
+        }
+        .input-modern:focus { border-color: #2563EB; background-color: #ffffff; box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1); }
+        .dark .input-modern { border-color: #334155; background-color: #1e293b; color: #f1f5f9; }
+        .dark .input-modern:focus { border-color: #3b82f6; background-color: #0f172a; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2); }
     </style>
 </head>
-<body class="min-h-[100dvh] flex flex-col relative pb-6">
+<body class="min-h-[100dvh] flex flex-col relative pb-20">
 
     <div id="loader-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-slate-900/40 dark:bg-black/60 backdrop-blur-md transition-all">
         <div class="flex flex-col items-center gap-4 bg-white dark:bg-slate-800 p-8 rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-700">
             <svg class="animate-spin h-10 w-10 text-brand-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            <p class="text-slate-800 dark:text-slate-200 font-bold text-sm tracking-widest uppercase" id="loader-text">Procesando...</p>
+            <p class="text-slate-800 dark:text-slate-200 font-bold text-sm tracking-widest uppercase" id="loader-text">Cargando...</p>
+        </div>
+    </div>
+
+    <div id="custom-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-slate-900/50 dark:bg-black/70 backdrop-blur-sm transition-opacity duration-200 opacity-0 px-4">
+        <div class="bg-white dark:bg-slate-800 p-8 rounded-3xl w-full max-w-sm shadow-2xl transform scale-95 transition-transform duration-200" id="modal-content">
+            <div class="flex flex-col items-center text-center gap-3 mb-6">
+                <div id="modal-icon-container" class="w-20 h-20 rounded-full flex items-center justify-center mb-2">
+                    <span class="text-4xl" id="modal-icon">✅</span>
+                </div>
+                <h3 id="modal-title" class="text-2xl font-bold text-slate-900 dark:text-white">Aviso</h3>
+            </div>
+            <p id="modal-msg" class="text-slate-500 dark:text-slate-300 text-[15px] mb-8 leading-relaxed text-center font-medium"></p>
+            <button onclick="closeModal()" class="w-full bg-slate-900 dark:bg-brand-blue hover:bg-slate-800 text-white py-4 rounded-2xl font-bold text-lg transition-all shadow-lg active:scale-95">Entendido</button>
         </div>
     </div>
 
     <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40 transition-colors duration-300">
         <div class="px-5 py-3 flex justify-between items-center gap-4">
             <div class="flex items-center gap-3 select-none">
+                <svg viewBox="0 0 280 150" class="h-8 w-auto" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="g1-emp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2563EB"/><stop offset="100%" stop-color="#8B5CF6"/></linearGradient>
+                        <linearGradient id="g2-emp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#EC4899"/></linearGradient>
+                        <linearGradient id="g3-emp" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#EC4899"/><stop offset="100%" stop-color="#F97316"/></linearGradient>
+                    </defs>
+                    <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+                        <path d="M 32 110 L 32 65 A 34 34 0 0 1 100 65 L 100 110" stroke="url(#g1-emp)" stroke-width="32" />
+                        <path d="M 100 110 L 100 65 A 34 34 0 0 1 168 65 L 168 110" stroke="url(#g2-emp)" stroke-width="32" />
+                        <path d="M 229 13.2 L 229 53.2 M 209 33.2 L 249 33.2" stroke="url(#g3-emp)" stroke-width="24" />
+                    </g>
+                </svg>
                 <div class="flex flex-col mt-1">
                     <div class="flex items-baseline leading-none">
                         <span class="font-display font-[900] text-xl text-slate-900 dark:text-white tracking-tighter">MAS</span>
                         <span class="font-display font-[700] text-xl text-slate-900 dark:text-white tracking-tighter ml-1">Digital</span>
                         <span class="w-2 h-2 bg-brand-orange rounded-full ml-1 relative top-[-1px]"></span>
                     </div>
-                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">Portal Biométrico</span>
+                    <span class="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5 block">Portal Empleado</span>
                 </div>
             </div>
-            <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 border border-slate-200 dark:border-slate-700">
+
+            <button onclick="toggleTheme()" class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400 active:scale-95 transition-transform border border-slate-200 dark:border-slate-700">
                 <svg id="theme-icon-moon" class="w-5 h-5 hidden dark:block" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                 <svg id="theme-icon-sun" class="w-5 h-5 block dark:hidden" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path></svg>
             </button>
         </div>
     </header>
 
-    <main class="flex-grow flex flex-col p-5 max-w-lg mx-auto w-full relative justify-center">
-        
-        <!-- ESTADO 1: INGRESAR DNI -->
-        <div id="panel-identidad" class="card-neo p-8 flex flex-col items-center text-center transition-all">
-            <div class="w-20 h-20 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-brand-blue mb-6">
-                <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
-            </div>
-            <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-2">Identificación</h2>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mb-8">Ingresa tu número de DNI para acceder a tu perfil de asistencia seguro.</p>
-            
-            <input type="number" id="txt-dni" class="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl px-6 py-4 text-center text-2xl font-bold tracking-widest text-slate-900 dark:text-white outline-none focus:border-brand-blue transition-colors mb-6 shadow-inner" placeholder="Escribe tu DNI">
-            
-            <button onclick="verificarEmpleado()" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/30 active:scale-95 text-lg">
-                Siguiente
-            </button>
-        </div>
+    <main class="flex-grow flex flex-col p-5 max-w-lg mx-auto w-full relative">
 
-        <!-- ESTADO 2: BIOMETRÍA -->
-        <div id="panel-biometria" class="card-neo p-8 hidden flex-col items-center text-center transition-all mt-4 border-t-4 border-t-brand-blue">
-            <h2 id="lbl-nombre" class="text-2xl font-black text-slate-900 dark:text-white mb-1 uppercase leading-tight">Cargando...</h2>
-            <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-6">Autenticación Segura</p>
-
-            <div id="box-vincular" class="hidden w-full">
-                <div class="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 p-4 rounded-xl mb-6">
-                    <p class="text-xs text-orange-800 dark:text-orange-300 font-bold leading-relaxed">Este celular no está vinculado a tu cuenta. Debes registrar tu Huella o Face ID para poder marcar asistencia en el futuro.</p>
+        <!-- 1. BIOMETRÍA (REEMPLAZO DE ESCÁNER) -->
+        <section id="view-biometria" class="flex-grow flex flex-col items-center justify-center">
+            
+            <div id="panel-identidad" class="w-full">
+                <div class="text-center mb-8">
+                    <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-2">Autenticación</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 px-4">Ingresa tu DNI para validar tu identidad.</p>
                 </div>
-                <button onclick="vincularCelular()" class="w-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 hover:bg-slate-800 font-bold py-4 rounded-2xl transition-all shadow-xl active:scale-95 text-[15px] flex items-center justify-center gap-3">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
-                    Vincular mi Huella / Face ID
-                </button>
+                
+                <div class="card-neo p-8 w-full max-w-sm mx-auto relative mb-6">
+                    <div class="absolute top-6 left-6 w-8 h-8 border-t-4 border-l-4 border-brand-blue z-10 rounded-tl-lg pointer-events-none"></div>
+                    <div class="absolute top-6 right-6 w-8 h-8 border-t-4 border-r-4 border-brand-blue z-10 rounded-tr-lg pointer-events-none"></div>
+                    <div class="absolute bottom-6 left-6 w-8 h-8 border-b-4 border-l-4 border-brand-blue z-10 rounded-bl-lg pointer-events-none"></div>
+                    <div class="absolute bottom-6 right-6 w-8 h-8 border-b-4 border-r-4 border-brand-blue z-10 rounded-br-lg pointer-events-none"></div>
+                    
+                    <div class="flex flex-col items-center text-center z-20 relative">
+                        <div class="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-brand-blue mb-6">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path></svg>
+                        </div>
+                        <input type="tel" maxlength="8" id="txt-dni" class="input-modern mb-6 font-mono text-center text-2xl tracking-widest" placeholder="DNI" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                        
+                        <button onclick="iniciarSesionEmpleado()" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-4 rounded-2xl transition-all shadow-lg shadow-blue-500/30 active:scale-95 text-lg">
+                            Continuar
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <div id="box-marcar" class="hidden w-full">
-                <p class="text-xs text-slate-500 mb-6">Al presionar el botón, el sistema verificará tu ubicación GPS y solicitará tu Huella Digital o Face ID.</p>
-                <button onclick="iniciarProcesoMarcado()" class="w-full bg-brand-blue hover:bg-blue-600 text-white font-bold py-5 rounded-2xl transition-all shadow-lg shadow-blue-500/40 active:scale-95 text-lg flex items-center justify-center gap-3">
-                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                    Firmar Asistencia
-                </button>
-            </div>
-            
-            <button onclick="reiniciar()" class="mt-6 text-slate-400 text-xs font-bold underline">Cerrar sesión / Otro usuario</button>
-        </div>
+            <div id="panel-accion" class="w-full hidden">
+                <div class="text-center mb-8">
+                    <h2 id="lbl-nombre" class="text-2xl font-black text-slate-900 dark:text-white mb-2 uppercase leading-tight tracking-tight">HOLA...</h2>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 px-4">El sistema validará tu ubicación por GPS antes de solicitar tu huella.</p>
+                </div>
+                
+                <div class="card-neo p-8 w-full max-w-sm mx-auto relative mb-6">
+                    <div class="absolute top-6 left-6 w-8 h-8 border-t-4 border-l-4 border-brand-blue z-10 rounded-tl-lg pointer-events-none"></div>
+                    <div class="absolute top-6 right-6 w-8 h-8 border-t-4 border-r-4 border-brand-blue z-10 rounded-tr-lg pointer-events-none"></div>
+                    <div class="absolute bottom-6 left-6 w-8 h-8 border-b-4 border-l-4 border-brand-blue z-10 rounded-bl-lg pointer-events-none"></div>
+                    <div class="absolute bottom-6 right-6 w-8 h-8 border-b-4 border-r-4 border-brand-blue z-10 rounded-br-lg pointer-events-none"></div>
+                    
+                    <div class="flex flex-col items-center text-center z-20 relative">
+                        <div class="w-16 h-16 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-brand-blue mb-6">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
+                        </div>
+                        
+                        <div id="box-vincular" class="hidden w-full flex-col items-center">
+                            <button onclick="vincularYMarcar()" class="w-full bg-slate-900 dark:bg-brand-blue hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all shadow-[0_10px_20px_-10px_rgba(15,23,42,0.6)] active:scale-95 text-[15px]">
+                                Vincular y Firmar
+                            </button>
+                        </div>
+                        
+                        <div id="box-marcar" class="hidden w-full flex-col items-center">
+                            <button onclick="iniciarProcesoMarcado()" class="w-full bg-slate-900 dark:bg-brand-blue hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all shadow-[0_10px_20px_-10px_rgba(15,23,42,0.6)] active:scale-95 text-[15px]">
+                                Firmar Asistencia
+                            </button>
+                        </div>
 
+                        <button onclick="cerrarSesion()" class="mt-6 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline font-bold transition-colors">Volver / Cambiar DNI</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. HISTORIAL DE ASISTENCIAS -->
+        <section id="view-historial" class="hidden flex-grow flex-col">
+            <div class="mb-6 mt-2">
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-2">Asistencia Hoy</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Verifica el estado público de asistencias. Todo se reinicia automáticamente mañana.</p>
+            </div>
+
+            <div class="flex gap-2 mb-6 overflow-x-auto hide-scrollbar pb-2">
+                <div class="shrink-0 px-3 py-1.5 bg-green-50 border border-green-200 rounded-lg flex items-center gap-1.5 dark:bg-green-900/20 dark:border-green-800"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-[11px] font-bold text-green-700 dark:text-green-400">Asistió (A)</span></div>
+                <div class="shrink-0 px-3 py-1.5 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-1.5 dark:bg-yellow-900/20 dark:border-yellow-800"><span class="w-2 h-2 rounded-full bg-yellow-500"></span><span class="text-[11px] font-bold text-yellow-700 dark:text-yellow-400">Tarde (T)</span></div>
+                <div class="shrink-0 px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg flex items-center gap-1.5 dark:bg-red-900/20 dark:border-red-800"><span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-[11px] font-bold text-red-700 dark:text-red-400">Falta (F)</span></div>
+            </div>
+
+            <div id="tareo-container" class="flex flex-col gap-3 pb-8"></div>
+        </section>
+
+        <!-- 3. MI RESUMEN MENSUAL -->
+        <section id="view-mi-tareo" class="hidden flex-grow flex-col">
+            <div class="mb-6 mt-2">
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white mb-2">Mi Resumen</h2>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Consulta tus asistencias y récord mensual.</p>
+            </div>
+
+            <div class="card-neo p-5 mb-6 border-b-4 border-b-brand-blue">
+                <div class="flex items-center gap-2 mb-3">
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-widest flex-1">Ingresa tu DNI</label>
+                    <select id="selector-mes" class="bg-slate-100 dark:bg-slate-800 text-[10px] font-bold text-slate-600 dark:text-slate-300 rounded-lg px-2 py-1 outline-none border border-slate-200 dark:border-slate-700">
+                        <option value="0">Mes Actual</option>
+                        <option value="1">Mes Anterior</option>
+                    </select>
+                </div>
+                <div class="flex gap-3">
+                    <input type="number" id="input-mi-dni" class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-900 dark:text-white font-bold outline-none focus:border-brand-blue transition-colors text-lg" placeholder="Ej. 76543210">
+                    <button onclick="buscarMiResumen()" class="bg-brand-blue hover:bg-blue-600 text-white px-6 rounded-xl font-bold transition-all shadow-lg shadow-blue-500/30 active:scale-95 flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="resultado-mi-tareo" class="hidden flex-col gap-4 pb-8">
+                <!-- Se inyecta Data HTML aquí -->
+            </div>
+        </section>
     </main>
 
+    <!-- NAVIGATION BOTTOM -->
+    <nav class="fixed bottom-0 left-0 w-full bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-t border-slate-200 dark:border-slate-800 pb-safe z-50">
+        <div class="max-w-md mx-auto flex justify-around items-center p-3">
+            <button onclick="switchTabSafe('biometria')" id="tab-biometria" class="nav-item active flex-1 py-1">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path>
+                </svg>
+                <span>Biometría</span>
+            </button>
+            <button onclick="switchTabSafe('historial')" id="tab-historial" class="nav-item flex-1 py-1">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                <span>Asistencias</span>
+            </button>
+            <button onclick="switchTabSafe('mi-tareo')" id="tab-mi-tareo" class="nav-item flex-1 py-1">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                <span>Mi Resumen</span>
+            </button>
+        </div>
+    </nav>
+
     <script>
-        function toggleTheme() { var html = document.documentElement; html.classList.toggle('dark'); }
+        function toggleTheme() {
+            var html = document.documentElement; 
+            html.classList.toggle('dark');
+            localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
+        }
+        if (localStorage.getItem('theme') === 'dark') { document.documentElement.classList.add('dark'); }
 
-        function showLoader(txt) { document.getElementById('loader-text').innerText=txt; document.getElementById('loader-overlay').classList.remove('hidden'); document.getElementById('loader-overlay').classList.add('flex'); }
-        function hideLoader() { document.getElementById('loader-overlay').classList.add('hidden'); document.getElementById('loader-overlay').classList.remove('flex'); }
+        function showModal(title, message, isSuccess) {
+            if (isSuccess === undefined) { isSuccess = true; }
+            document.getElementById('modal-title').innerText = title; 
+            document.getElementById('modal-msg').innerText = message;
+            var iconContainer = document.getElementById('modal-icon-container');
+            iconContainer.className = isSuccess ? "w-20 h-20 rounded-full bg-green-50 flex items-center justify-center mb-2 text-green-500 border-4 border-green-100 dark:bg-green-900/30 dark:border-green-800" : "w-20 h-20 rounded-full bg-red-50 flex items-center justify-center mb-2 text-red-500 border-4 border-red-100 dark:bg-red-900/30 dark:border-red-800";
+            document.getElementById('modal-icon').innerText = isSuccess ? "✅" : "❌";
+            var modal = document.getElementById('custom-modal'); 
+            var content = document.getElementById('modal-content');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(function() { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+        }
 
-        let dniActual = "";
+        function closeModal() {
+            var modal = document.getElementById('custom-modal'); 
+            var content = document.getElementById('modal-content');
+            modal.classList.add('opacity-0'); content.classList.add('scale-95');
+            setTimeout(function() { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        }
 
-        // ==== UTILIDADES WEBAUTHN ====
+        function showLoader(text) {
+            if (!text) { text = "Procesando..."; }
+            document.getElementById('loader-text').innerText = text;
+            var overlay = document.getElementById('loader-overlay');
+            overlay.classList.remove('hidden'); overlay.classList.add('flex');
+        }
+
+        function hideLoader() {
+            var overlay = document.getElementById('loader-overlay');
+            overlay.classList.add('hidden'); overlay.classList.remove('flex');
+        }
+
+        // TABS CON MEMORIA (SWR PATTERN)
+        var isHistorialCargado = false;
+        var dniGlobal = "";
+
+        window.switchTabSafe = function(viewId) {
+            try {
+                var tabs = ['biometria', 'historial', 'mi-tareo'];
+                for(var i = 0; i < tabs.length; i++) {
+                    var v = tabs[i];
+                    var viewEl = document.getElementById('view-' + v); 
+                    var tabEl = document.getElementById('tab-' + v);
+                    if(viewEl) { viewEl.classList.add('hidden'); }
+                    if(tabEl) { tabEl.classList.remove('active'); }
+                }
+
+                var activeView = document.getElementById('view-' + viewId); 
+                var activeTab = document.getElementById('tab-' + viewId);
+                if(activeView) { activeView.classList.remove('hidden'); }
+                if(activeTab) { activeTab.classList.add('active'); }
+
+                if (viewId === 'historial') {
+                    if (!isHistorialCargado) cargarHistorial();
+                }
+            } catch(e) { }
+        };
+
+        // --- LÓGICA BIOMÉTRICA Y GPS ---
         function bufferToBase64(buffer) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buffer))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, ""); }
         function generarReto() { const reto = new Uint8Array(32); window.crypto.getRandomValues(reto); return reto.buffer; }
 
-        function reiniciar() {
-            dniActual = "";
-            document.getElementById('txt-dni').value = "";
-            document.getElementById('panel-biometria').classList.add('hidden');
+        function cerrarSesion() {
+            dniGlobal = ""; document.getElementById('txt-dni').value = ""; 
+            document.getElementById('panel-accion').classList.add('hidden');
             document.getElementById('panel-identidad').classList.remove('hidden');
         }
 
-        function verificarEmpleado() {
-            let dni = document.getElementById('txt-dni').value.trim();
-            if(dni.length < 8) return alert("DNI inválido");
+        function iniciarSesionEmpleado() {
+            var dni = document.getElementById('txt-dni').value.trim();
+            if(dni.length !== 8) return showModal("Aviso", "Ingresa un DNI válido de 8 dígitos.", false);
             
             showLoader("Buscando empleado...");
             google.script.run.withSuccessHandler(function(res) {
                 hideLoader();
                 if(res.success) {
-                    dniActual = res.dni;
+                    dniGlobal = res.dni;
                     document.getElementById('panel-identidad').classList.add('hidden');
-                    document.getElementById('panel-biometria').classList.remove('hidden');
-                    document.getElementById('panel-biometria').classList.add('flex');
+                    document.getElementById('panel-accion').classList.remove('hidden');
                     document.getElementById('lbl-nombre').innerText = res.nombre;
                     
                     if(res.tieneLlave) {
-                        document.getElementById('box-marcar').classList.remove('hidden');
-                        document.getElementById('box-vincular').classList.add('hidden');
+                        document.getElementById('box-marcar').classList.remove('hidden'); document.getElementById('box-vincular').classList.add('hidden');
                     } else {
-                        document.getElementById('box-marcar').classList.add('hidden');
-                        document.getElementById('box-vincular').classList.remove('hidden');
+                        document.getElementById('box-marcar').classList.add('hidden'); document.getElementById('box-vincular').classList.remove('hidden');
                     }
-                } else { alert(res.message); }
+                } else { showModal("Error", res.message, false); }
             }).verificarDniBiometria(dni);
         }
 
-        async function vincularCelular() {
-            if (!window.PublicKeyCredential) return alert("Navegador muy antiguo para usar biometría.");
-            if (!navigator.geolocation) return alert("Tu dispositivo no soporta GPS. Es necesario para marcar asistencia.");
+        async function vincularYMarcar() {
+            if (!window.PublicKeyCredential) return showModal("Error", "Este navegador no soporta Biometría.", false);
+            if (!navigator.geolocation) return showModal("Error", "Tu dispositivo no tiene GPS.", false);
 
-            showLoader("Obteniendo GPS para tu primer registro...");
+            showLoader("Leyendo GPS del local...");
             navigator.geolocation.getCurrentPosition(
                 async function(position) {
-                    let lat = position.coords.latitude;
-                    let lng = position.coords.longitude;
+                    let lat = position.coords.latitude; let lng = position.coords.longitude;
                     hideLoader();
-
+                    
                     try {
                         const options = {
-                            challenge: generarReto(),
-                            rp: { name: "MAS Digital Asistencia", id: window.location.hostname },
-                            user: { id: Uint8Array.from(dniActual, c => c.charCodeAt(0)), name: dniActual, displayName: dniActual },
+                            challenge: generarReto(), rp: { name: "MAS Digital Asistencia", id: window.location.hostname },
+                            user: { id: Uint8Array.from(dniGlobal, c => c.charCodeAt(0)), name: dniGlobal, displayName: dniGlobal },
                             pubKeyCredParams: [{alg: -7, type: "public-key"}],
                             authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
                             timeout: 60000, attestation: "direct"
@@ -182,41 +428,32 @@
                         const credential = await navigator.credentials.create({ publicKey: options });
                         const idLlave = bufferToBase64(credential.rawId);
                         
-                        showLoader("Vinculando y marcando asistencia...");
+                        showLoader("Guardando y Firmando...");
                         google.script.run.withSuccessHandler(function(res) {
-                            hideLoader();
-                            alert(res.message);
-                            if(res.success) reiniciar();
-                        }).vincularBiometria(dniActual, idLlave, lat, lng);
-                    } catch(e) { alert("Cancelaste el registro de huella."); }
+                            hideLoader(); 
+                            showModal(res.success?"¡Éxito!":"Aviso", res.message, res.success); 
+                            if(res.success) {
+                                document.getElementById('box-vincular').classList.add('hidden');
+                                document.getElementById('box-marcar').classList.remove('hidden');
+                                isHistorialCargado = false; // Forzar recarga del historial
+                            }
+                        }).withFailureHandler(function(){ hideLoader(); showModal("Red", "Error de red", false); }).vincularBiometria(dniGlobal, idLlave, lat, lng);
+                    } catch(e) { hideLoader(); showModal("Cancelado", "Autenticación biométrica cancelada.", false); }
                 },
-                function(error) { hideLoader(); alert("Error: Debes permitir el acceso a tu ubicación GPS."); },
+                function(error) { hideLoader(); showModal("GPS Requerido", "Debe permitir el acceso a su ubicación para marcar.", false); },
                 { enableHighAccuracy: true, timeout: 10000 }
             );
         }
 
-        // Proceso completo: GPS + Huella
         function iniciarProcesoMarcado() {
-            if (!navigator.geolocation) {
-                alert("Tu dispositivo o navegador no soporta GPS. No puedes marcar asistencia.");
-                return;
-            }
-
-            showLoader("Obteniendo tu ubicación GPS...");
-            
+            if (!navigator.geolocation) return showModal("Error", "Tu dispositivo no tiene GPS.", false);
+            showLoader("Verificando geolocalización...");
             navigator.geolocation.getCurrentPosition(
                 function(position) {
-                    let lat = position.coords.latitude;
-                    let lng = position.coords.longitude;
-                    
-                    // Si el GPS fue exitoso, pedimos la Huella o Face ID
-                    hideLoader();
-                    solicitarHuella(lat, lng);
+                    let lat = position.coords.latitude; let lng = position.coords.longitude;
+                    hideLoader(); solicitarHuella(lat, lng);
                 }, 
-                function(error) { 
-                    hideLoader(); 
-                    alert("Error: Debes permitir el acceso a tu ubicación GPS para poder marcar asistencia."); 
-                },
+                function(error) { hideLoader(); showModal("GPS Requerido", "Debe permitir el acceso a su ubicación.", false); }, 
                 { enableHighAccuracy: true, timeout: 10000 }
             );
         }
@@ -227,18 +464,176 @@
                 const assertion = await navigator.credentials.get({ publicKey: options });
                 const idLlaveUsada = bufferToBase64(assertion.rawId);
                 
-                showLoader("Validando GPS y Firma Criptográfica...");
-                
+                showLoader("Firmando asistencia...");
                 google.script.run.withSuccessHandler(function(res) {
+                    hideLoader(); showModal(res.success?"¡Marcado!":"Aviso", res.message, res.success); 
+                    if(res.success) { isHistorialCargado = false; }
+                }).withFailureHandler(function(){ hideLoader(); showModal("Red", "Error de red", false); }).marcarAsistenciaBiometrica(dniGlobal, idLlaveUsada, lat, lng);
+            } catch (e) { hideLoader(); showModal("Cancelado", "Autenticación biométrica cancelada.", false); }
+        }
+
+        // --- LÓGICA DE REPORTE Y TAREO ---
+        function buscarMiResumen() {
+            var dniInput = document.getElementById('input-mi-dni');
+            var dni = dniInput ? dniInput.value.trim() : "";
+            var offsetSelect = document.getElementById('selector-mes');
+            var offset = offsetSelect ? offsetSelect.value : "0";
+
+            if(!dni) { return showModal("DNI Requerido", "Ingresa tu número de documento.", false); }
+
+            showLoader("Buscando en registros...");
+            google.script.run
+                .withSuccessHandler(function(res) {
                     hideLoader();
-                    alert(res.message);
-                    if(res.success) reiniciar();
-                }).marcarAsistenciaBiometrica(dniActual, idLlaveUsada, lat, lng);
-                
-            } catch (e) { 
-                alert("Cancelaste la operación o falló la validación de Huella / Face ID."); 
+                    if(res && res.success) { renderizarMiResumen(res.data); }
+                    else { showModal("No encontrado", res.message || "DNI no registrado.", false); }
+                })
+                .withFailureHandler(function(err) {
+                    hideLoader();
+                    showModal("Error de Red", "Fallo al comunicar con la base de datos.", false);
+                })
+                .obtenerMiTareoMensual(dni, offset);
+        }
+
+        function renderizarMiResumen(data) {
+            var container = document.getElementById('resultado-mi-tareo');
+            container.classList.remove('hidden'); 
+            container.classList.add('flex');
+
+            var detallesHtml = "";
+            if (data.detalles && data.detalles.length > 0) {
+                var reversed = data.detalles.slice().reverse();
+                var listHtml = [];
+                for(var i = 0; i < reversed.length; i++) {
+                    var d = reversed[i];
+                    var estilo = getStyleClassForId(d.estado);
+                    var horaBadge = d.hora ? '<span class="ml-2 bg-white/50 dark:bg-black/20 px-1.5 rounded text-[9px]">' + d.hora + '</span>' : '';
+                    var minTardeBadge = (d.estado === 'T' && d.minTarde > 0) ? '<span class="ml-1 text-red-600 bg-red-100 dark:bg-red-900/30 dark:text-red-400 px-1.5 py-0.5 rounded text-[10px] font-black shadow-sm">+' + d.minTarde + ' min</span>' : '';
+
+                    var itemHtml = '<div class="flex justify-between items-center p-3 border-b border-slate-100 dark:border-slate-800 last:border-0">' +
+                                       '<span class="font-bold text-[13px] text-slate-700 dark:text-slate-300 capitalize">' + d.dia + '</span>' +
+                                       '<div class="' + estilo.bg + ' ' + estilo.text + ' px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border ' + estilo.border + ' flex items-center shadow-sm">' +
+                                           d.estado + ' ' + horaBadge + minTardeBadge +
+                                       '</div>' +
+                                   '</div>';
+                    listHtml.push(itemHtml);
+                }
+                detallesHtml = listHtml.join('');
+            } else {
+                detallesHtml = '<p class="p-4 text-center text-xs text-slate-400">Aún no hay marcaciones para este mes.</p>';
+            }
+
+            container.innerHTML = 
+                '<div class="card-neo p-5 border-l-4 border-l-brand-blue flex flex-col gap-1 fade-in">' +
+                    '<h3 class="font-black text-lg text-slate-900 dark:text-white uppercase leading-tight">' + data.nombres + '</h3>' +
+                    '<p class="text-[13px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">' + data.cargo + ' • ' + data.mesNombre + '</p>' +
+                '</div>' +
+                '<div class="grid grid-cols-2 gap-3 mt-2">' +
+                    '<div class="card-neo p-5 flex flex-col items-center justify-center border border-green-100 dark:border-green-900/30 bg-green-50/30 dark:bg-green-900/10">' +
+                        '<span class="text-3xl font-black text-green-600 dark:text-green-400">' + data.asistencias + '</span>' +
+                        '<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">Asistencias</span>' +
+                    '</div>' +
+                    '<div class="card-neo p-5 flex flex-col items-center justify-center border border-yellow-100 dark:border-yellow-900/30 bg-yellow-50/30 dark:bg-yellow-900/10">' +
+                        '<span class="text-3xl font-black text-yellow-600 dark:text-yellow-400">' + data.tardanzas + '</span>' +
+                        '<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">Tardanzas</span>' +
+                    '</div>' +
+                    '<div class="card-neo p-5 flex flex-col items-center justify-center border border-red-100 dark:border-red-900/30 bg-red-50/30 dark:bg-red-900/10">' +
+                        '<span class="text-3xl font-black text-red-600 dark:text-red-400">' + data.faltas + '</span>' +
+                        '<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1">Faltas</span>' +
+                    '</div>' +
+                    '<div class="card-neo p-5 flex flex-col items-center justify-center border border-purple-100 dark:border-purple-900/30 bg-purple-50/30 dark:bg-purple-900/10">' +
+                        '<span class="text-3xl font-black text-brand-purple">' + data.excepciones + '</span>' +
+                        '<span class="text-[11px] font-bold text-slate-500 uppercase tracking-widest mt-1 text-center">Permisos</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="mt-4">' +
+                    '<button onclick="document.getElementById(\'detalle-lista\').classList.toggle(\'hidden\')" class="w-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-bold text-[13px] uppercase tracking-widest py-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-center gap-2 transition-all active:scale-95">' +
+                        '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>' +
+                        'Ver Detalle del Mes' +
+                    '</button>' +
+                    '<div id="detalle-lista" class="hidden mt-3 card-neo overflow-hidden">' +
+                        detallesHtml +
+                    '</div>' +
+                '</div>';
+        }
+
+        function getStyleClassForId(id) {
+            var dict = {
+                'A': { border: 'border-green-500/30', bg: 'bg-green-50 dark:bg-green-900/10', text: 'text-green-700 dark:text-green-400', badge: 'bg-green-500' },
+                'T': { border: 'border-yellow-500/30', bg: 'bg-yellow-50 dark:bg-yellow-900/10', text: 'text-yellow-700 dark:text-yellow-400', badge: 'bg-yellow-500' },
+                'F': { border: 'border-red-500/30', bg: 'bg-red-50 dark:bg-red-900/10', text: 'text-red-700 dark:text-red-400', badge: 'bg-red-500' },
+                '-': { border: 'border-slate-200 dark:border-slate-700', bg: 'bg-slate-50 dark:bg-slate-800/40', text: 'text-slate-500 dark:text-slate-400', badge: 'bg-slate-300 dark:bg-slate-600' },
+                'AB': { border: 'border-slate-400 dark:border-slate-600', bg: 'bg-slate-200 dark:bg-slate-700', text: 'text-slate-800 dark:text-slate-300', badge: 'bg-slate-800' },
+                'R': { border: 'border-slate-900 dark:border-black', bg: 'bg-slate-800 dark:bg-slate-900', text: 'text-white', badge: 'bg-black' }
+            }; 
+            return dict[id] || { border: 'border-purple-500/30', bg: 'bg-purple-50 dark:bg-purple-900/10', text: 'text-purple-700 dark:text-purple-400', badge: 'bg-purple-500' };
+        }
+
+        function cargarHistorial() {
+            var container = document.getElementById('tareo-container');
+
+            var cacheKey = 'mas_cache_historial_emp';
+            var cached = localStorage.getItem(cacheKey);
+            if(cached) { renderizarHistorial(JSON.parse(cached)); }
+            else { container.innerHTML = '<div class="card-neo p-8 text-center text-slate-500 flex flex-col items-center gap-3"><svg class="animate-spin w-8 h-8 text-brand-blue" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg><span class="font-medium text-sm">Descargando registros...</span></div>'; }
+
+            google.script.run
+                .withSuccessHandler(function(empleados) {
+                    isHistorialCargado = true;
+                    localStorage.setItem(cacheKey, JSON.stringify(empleados));
+                    renderizarHistorial(empleados);
+                })
+                .obtenerTareoHoy();
+        }
+
+        function renderizarHistorial(empleados) {
+            var container = document.getElementById('tareo-container');
+            container.innerHTML = '';
+            if(!empleados || empleados.length === 0) { 
+                container.innerHTML = '<div class="card-neo p-8 text-center text-slate-500 font-medium text-sm border-dashed">No hay registros hoy.</div>'; 
+                return; 
+            }
+
+            for(var i = 0; i < empleados.length; i++) {
+                var emp = empleados[i];
+                var namesArray = emp.nombres.split(' ');
+                var iniArray = [];
+                for(var j=0; j < namesArray.length && j < 2; j++) { iniArray.push(namesArray[j].charAt(0)); }
+                var iniciales = iniArray.join('').toUpperCase();
+                var estilo = getStyleClassForId(emp.estado);
+
+                var extratime = "";
+                if(emp.estado === 'T') {
+                    extratime = '<p class="mt-1 text-[10px] text-yellow-600 font-mono opacity-80">+' + emp.minutosTarde + 'm</p>';
+                } else if(emp.estado === 'A' && emp.horaExacta) {
+                    extratime = '<p class="mt-1 text-[10px] text-green-600 font-mono opacity-80">Hora: ' + emp.horaExacta + '</p>';
+                }
+
+                var trClass = "card-neo p-4 border-l-4 " + estilo.border + " flex items-center justify-between";
+                if (emp.estado === 'R' || emp.estado === 'AB') {
+                    trClass += " opacity-60 grayscale bg-slate-50 dark:bg-slate-900/50";
+                }
+
+                container.innerHTML += 
+                    '<div class="' + trClass + '">' +
+                        '<div class="flex items-center gap-3">' +
+                            '<div class="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center font-bold text-xs shrink-0">' + iniciales + '</div>' +
+                            '<div class="flex flex-col"><span class="font-bold text-[13px] text-slate-900 dark:text-white">' + emp.nombres + '</span><span class="text-[10px] text-slate-500 truncate max-w-[150px]">' + emp.cargo + '</span></div>' +
+                        '</div>' +
+                        '<div class="flex flex-col items-end text-right">' +
+                            '<div class="' + estilo.bg + ' ' + estilo.text + ' px-3 py-1 rounded-full text-[10px] font-bold tracking-wider uppercase flex items-center gap-1.5 border ' + estilo.border + '"><span class="w-1.5 h-1.5 rounded-full ' + estilo.badge + '"></span>' + emp.estado + '</div>' +
+                            extratime +
+                        '</div>' +
+                    '</div>';
             }
         }
+
+        // ARRANQUE SÚPER RÁPIDO CON CACHÉ
+        window.addEventListener('load', function() { 
+            verificarAcceso(function() {
+                switchTabSafe('biometria'); 
+            });
+        });
     </script>
 </body>
 </html>
