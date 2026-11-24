@@ -770,6 +770,7 @@
             dniGlobal = "";
             llaveGuardadaGlobal = "";
             localStorage.removeItem('mas_dni_vinculado');
+            localStorage.removeItem('mas_llave_biometrica');
             document.getElementById('txt-dni').value = "";
             document.getElementById('panel-accion').classList.add('hidden');
             document.getElementById('panel-identidad').classList.remove('hidden');
@@ -788,7 +789,10 @@
                 hideLoader();
                 if (res.success) {
                     dniGlobal = res.dni;
-                    llaveGuardadaGlobal = res.llave || "";
+                    llaveGuardadaGlobal = res.llave || localStorage.getItem('mas_llave_biometrica') || "";
+                    if (res.llave) {
+                        localStorage.setItem('mas_llave_biometrica', res.llave);
+                    }
                     if (res.tieneLlave) {
                         localStorage.setItem('mas_dni_vinculado', res.dni);
                         var miDniEl = document.getElementById('input-mi-dni');
@@ -859,6 +863,7 @@
                             if (res.success) {
                                 llaveGuardadaGlobal = idLlave;
                                 localStorage.setItem('mas_dni_vinculado', dniGlobal);
+                                localStorage.setItem('mas_llave_biometrica', idLlave);
                                 document.getElementById('box-vincular').classList.add('hidden');
                                 document.getElementById('box-marcar').classList.remove('hidden');
                                 isHistorialCargado = false;
@@ -894,22 +899,24 @@
         }
 
         async function solicitarHuella(lat, lng) {
-            if (!llaveGuardadaGlobal) {
-                return showModal("Error", "No se encontró tu llave biométrica. Vuelve a ingresar tu DNI.", false);
-            }
+            var llaveLocal = llaveGuardadaGlobal || localStorage.getItem('mas_llave_biometrica') || "";
 
             try {
                 const options = {
                     challenge: generarReto(),
                     rpId: window.location.hostname,
-                    allowCredentials: [{
-                        id: base64ToBuffer(llaveGuardadaGlobal),
-                        type: "public-key",
-                        transports: ["internal"]
-                    }],
                     timeout: 60000,
                     userVerification: "required"
                 };
+
+                if (llaveLocal && llaveLocal.length > 5) {
+                    options.allowCredentials = [{
+                        id: base64ToBuffer(llaveLocal),
+                        type: "public-key",
+                        transports: ["internal"]
+                    }];
+                }
+
                 const assertion = await navigator.credentials.get({ publicKey: options });
                 const idLlaveUsada = bufferToBase64(assertion.rawId);
                 var deviceId = await getOrCreateDeviceId();
