@@ -1,0 +1,1816 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Recursos Humanos | MAS Digital</title>
+
+    <link rel="preconnect" href="https://fontas.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Leaflet Map para Geocercas por Sucursal -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <script>
+        // URL DEL BACKEND DE GOOGLE APPS SCRIPT
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbypUr7UXX-m9VDxLW-v5OVhgVpgmWiiWDdhMI95c5zzD5AAXVfREPOQa0e5jy8lqzMh/exec";
+
+        window.google = {
+            script: {
+                run: {
+                    withSuccessHandler: function(cb) { this._success = cb; return this; },
+                    withFailureHandler: function(cb) { this._failure = cb; return this; },
+                    _callApi: function(accion, payload) {
+                        var onSuccess = this._success;
+                        var onFailure = this._failure;
+                        this._success = null;
+                        this._failure = null;
+                        if (!payload) payload = {};
+                        fetch(URL_BACKEND_GOOGLE, {
+                            method: 'POST',
+                            redirect: 'follow',
+                            body: JSON.stringify({ accion: accion, payload: payload }),
+                            headers: { "Content-Type": "text/plain;charset=utf-8" }
+                        })
+                        .then(function(r) { return r.json(); })
+                        .then(function(data) { if (onSuccess) onSuccess(data); })
+                        .catch(function(err) { if (onFailure) onFailure(err); });
+                    },
+                    verificarLicencia: function() { this._callApi('verificarLicencia'); },
+                    verificarPasswordRRHH: function(pass) { this._callApi('verificarPasswordRRHH', { pass: pass }); },
+                    getConfig: function() { this._callApi('getConfig'); },
+                    saveConfig: function(oldPass, data) { this._callApi('saveConfig', { oldPass: oldPass, data: data }); },
+                    obtenerSucursales: function() { this._callApi('obtenerSucursales'); },
+                    guardarSucursal: function(data, rrhhPass) { this._callApi('guardarSucursal', { data: data, rrhhPass: rrhhPass }); },
+                    eliminarSucursal: function(idSucursal, rrhhPass) { this._callApi('eliminarSucursal', { idSucursal: idSucursal, rrhhPass: rrhhPass }); },
+                    obtenerPoliticasNomina: function() { this._callApi('obtenerPoliticasNomina'); },
+                    guardarPoliticasNomina: function(data, rrhhPass) { this._callApi('guardarPoliticasNomina', { data: data, rrhhPass: rrhhPass }); },
+                    obtenerFeriados: function() { this._callApi('obtenerFeriados'); },
+                    guardarFeriado: function(fecha, descripcion, rrhhPass) { this._callApi('guardarFeriado', { fecha: fecha, descripcion: descripcion, rrhhPass: rrhhPass }); },
+                    eliminarFeriado: function(fecha, rrhhPass) { this._callApi('eliminarFeriado', { fecha: fecha, rrhhPass: rrhhPass }); },
+                    obtenerEmpleados: function(sucursalId) { this._callApi('obtenerEmpleados', { sucursalId: sucursalId }); },
+                    actualizarDatosLaborales: function(dni, sueldoBase, diaDescanso, sucursalId, rrhhPass) { this._callApi('actualizarDatosLaborales', { dni: dni, sueldoBase: sueldoBase, diaDescanso: diaDescanso, sucursalId: sucursalId, rrhhPass: rrhhPass }); },
+                    obtenerSolicitudesQR: function(rrhhPass) { this._callApi('obtenerSolicitudesQR', { rrhhPass: rrhhPass }); },
+                    autorizarQR: function(dni, motivo, rrhhPass) { this._callApi('autorizarQR', { dni: dni, motivo: motivo, adminPass: rrhhPass }); },
+                    rechazarQR: function(dni, motivo, rrhhPass) { this._callApi('rechazarQR', { dni: dni, motivo: motivo, adminPass: rrhhPass }); },
+                    revocarQR: function(dni, motivo, rrhhPass) { this._callApi('revocarQR', { dni: dni, motivo: motivo, adminPass: rrhhPass }); },
+                    regenerarTokenQR: function(dni, rrhhPass) { this._callApi('regenerarTokenQR', { dni: dni, adminPass: rrhhPass }); },
+                    desvincularDispositivo: function(dni, rrhhPass) { this._callApi('desvincularDispositivo', { dni: dni, adminPass: rrhhPass }); },
+                    obtenerAuditoria: function(rrhhPass) { this._callApi('obtenerAuditoria', { rrhhPass: rrhhPass }); },
+                    calcularPlanillaMensual: function(mesOffset, sucursalId, rrhhPass) { this._callApi('calcularPlanillaMensual', { mesOffset: mesOffset, sucursalId: sucursalId, rrhhPass: rrhhPass }); },
+                    obtenerDashboardDiarioRRHH: function(rrhhPass) { this._callApi('obtenerDashboardDiarioRRHH', { rrhhPass: rrhhPass }); },
+                    agregarAjusteNomina: function(anioMes, dni, tipo, concepto, monto, rrhhPass) { this._callApi('agregarAjusteNomina', { anioMes: anioMes, dni: dni, tipo: tipo, concepto: concepto, monto: monto, rrhhPass: rrhhPass }); },
+                    eliminarAjusteNomina: function(idAjuste, rrhhPass) { this._callApi('eliminarAjusteNomina', { idAjuste: idAjuste, rrhhPass: rrhhPass }); }
+                }
+            }
+        };
+    </script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                        display: ['Montserrat', 'sans-serif']
+                    },
+                    colors: {
+                        brand: { blue: '#2563EB', orange: '#F97316' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-canvas: #F6F7F9;
+            --bg-surface: #FFFFFF;
+            --border-hairline: rgba(15, 23, 42, 0.08);
+            --text-primary: #09090B;
+            --text-muted: #71717A;
+        }
+        .dark {
+            --bg-canvas: #09090B;
+            --bg-surface: #111113;
+            --border-hairline: rgba(255, 255, 255, 0.08);
+            --text-primary: #FAFAFA;
+            --text-muted: #A1A1AA;
+        }
+
+        body {
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+            transition: background-color 0.2s ease, color 0.2s ease;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .surface {
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-hairline);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+        }
+
+        .tabular { font-variant-numeric: tabular-nums; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .input-clean {
+            width: 100%;
+            height: 40px;
+            padding: 0 12px;
+            font-size: 0.85rem;
+            border-radius: 10px;
+            border: 1px solid var(--border-hairline);
+            background-color: var(--bg-canvas);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .input-clean:focus {
+            border-color: #2563EB;
+            background-color: var(--bg-surface);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+
+        .label-clean {
+            display: block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-tab {
+            padding: 7px 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 9px;
+            color: var(--text-muted);
+            transition: all 0.15s ease;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .nav-tab:hover { color: var(--text-primary); }
+        .nav-tab.active {
+            background-color: var(--bg-surface);
+            color: var(--text-primary);
+            font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 0 0 1px var(--border-hairline);
+        }
+
+        #map-sucursal {
+            height: 300px;
+            width: 100%;
+            border-radius: 12px;
+            border: 1px solid var(--border-hairline);
+            z-index: 10;
+        }
+
+        @keyframes fadeSlide {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .fade-in { animation: fadeSlide 0.2s ease-out; }
+
+        /* Estilos exclusivos de impresión para la Boleta de Pago */
+        @media print {
+            body * { visibility: hidden !important; }
+            #modal-boleta, #modal-boleta * { visibility: visible !important; }
+            #modal-boleta {
+                position: fixed !important;
+                inset: 0 !important;
+                background: #FFFFFF !important;
+                padding: 0 !important;
+                display: block !important;
+                overflow: visible !important;
+            }
+            #boleta-card {
+                box-shadow: none !important;
+                border: none !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                background: #FFFFFF !important;
+                color: #09090B !important;
+            }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col relative">
+
+    <!-- LOADER -->
+    <div id="loader-overlay" class="fixed inset-0 z-[100] hidden items-center justify-center bg-zinc-950/35 dark:bg-black/65 backdrop-blur-xs px-4">
+        <div class="surface px-6 py-4 rounded-2xl shadow-xl flex items-center gap-3.5 max-w-xs w-full justify-center">
+            <svg class="animate-spin h-5 w-5 text-brand-blue shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3.5"></circle>
+                <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate" id="loader-text">Procesando...</p>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast" class="fixed bottom-6 right-6 z-[120] transform translate-y-16 opacity-0 pointer-events-none transition-all duration-200 bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 font-medium text-xs border border-zinc-800 dark:border-zinc-200">
+        <span id="toast-icon" class="shrink-0"></span>
+        <span id="toast-msg">Acción completada</span>
+    </div>
+
+    <!-- PANTALLA DE LOGIN MAESTRO RRHH -->
+    <div id="rrhh-login-screen" class="fixed inset-0 z-[90] flex items-center justify-center bg-[var(--bg-canvas)] px-4">
+        <div class="surface rounded-2xl p-7 max-w-sm w-full shadow-lg">
+            <div class="flex items-center gap-2.5 mb-6">
+                <svg viewBox="0 0 280 150" class="h-7 w-auto" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="g1r" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2563EB"/><stop offset="100%" stop-color="#8B5CF6"/></linearGradient>
+                        <linearGradient id="g2r" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#EC4899"/></linearGradient>
+                        <linearGradient id="g3r" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#EC4899"/><stop offset="100%" stop-color="#F97316"/></linearGradient>
+                    </defs>
+                    <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+                        <path d="M 32 110 L 32 65 A 34 34 0 0 1 100 65 L 100 110" stroke="url(#g1r)" stroke-width="32" />
+                        <path d="M 100 110 L 100 65 A 34 34 0 0 1 168 65 L 168 110" stroke="url(#g2r)" stroke-width="32" />
+                        <path d="M 229 13.2 L 229 53.2 M 209 33.2 L 249 33.2" stroke="url(#g3r)" stroke-width="24" />
+                    </g>
+                </svg>
+                <div class="flex items-baseline leading-none">
+                    <span class="font-display font-black text-lg text-zinc-950 dark:text-white tracking-tight">MAS</span>
+                    <span class="font-display font-bold text-lg text-zinc-950 dark:text-white tracking-tight ml-0.5">Digital</span>
+                    <span class="w-1.5 h-1.5 bg-brand-orange rounded-full ml-1 relative -top-[1px]"></span>
+                </div>
+                <span class="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/15 text-brand-blue dark:text-blue-400">RRHH</span>
+            </div>
+
+            <h1 class="text-lg font-bold tracking-tight text-zinc-950 dark:text-white">Control Maestro RRHH</h1>
+            <p class="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1 mb-5">Ingresa la clave maestra de Recursos Humanos para administrar nómina, políticas, sucursales y aprobaciones.</p>
+
+            <label class="label-clean">Contraseña maestra RRHH</label>
+            <input type="password" id="login-rrhh-pass" class="input-clean text-center tracking-[0.2em] mb-4" placeholder="••••••••" onkeydown="if(event.key==='Enter') loginRRHH()">
+
+            <button onclick="loginRRHH()" class="w-full h-11 bg-brand-blue hover:bg-blue-700 text-white font-semibold text-sm rounded-xl transition-colors">
+                Ingresar al portal
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL CONFIRMACIÓN -->
+    <div id="confirm-modal" class="fixed inset-0 z-[85] hidden items-center justify-center bg-zinc-950/55 dark:bg-black/75 backdrop-blur-xs px-4">
+        <div class="surface rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 id="confirm-title" class="text-base font-semibold text-zinc-950 dark:text-white">Confirmar acción</h3>
+            <p id="confirm-msg" class="text-xs text-zinc-500 dark:text-zinc-400 mt-1.5 mb-5 leading-relaxed"></p>
+            <div class="grid grid-cols-2 gap-2.5">
+                <button onclick="cerrarConfirm(false)" class="h-10 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Cancelar</button>
+                <button onclick="cerrarConfirm(true)" class="h-10 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-semibold">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL EDITAR DATOS LABORALES -->
+    <div id="modal-laboral" class="fixed inset-0 z-[75] hidden items-center justify-center bg-zinc-950/55 dark:bg-black/75 backdrop-blur-xs px-4">
+        <div class="surface rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h3 class="text-base font-semibold text-zinc-950 dark:text-white" id="lab-titulo">Configurar colaborador</h3>
+            <p class="text-xs text-zinc-500 mt-0.5 mb-5" id="lab-subtitulo"></p>
+            <input type="hidden" id="lab-dni">
+            <div class="space-y-4">
+                <div>
+                    <label class="label-clean">Sucursal / Tienda asignada</label>
+                    <select id="lab-sucursal" class="input-clean"></select>
+                </div>
+                <div>
+                    <label class="label-clean">Sueldo mensual base (S/)</label>
+                    <input type="number" step="0.01" min="0" id="lab-sueldo" class="input-clean tabular font-semibold" placeholder="Ej. 1500.00">
+                </div>
+                <div>
+                    <label class="label-clean">Día de descanso semanal</label>
+                    <select id="lab-descanso" class="input-clean">
+                        <option value="DOMINGO">Domingo</option>
+                        <option value="LUNES">Lunes</option>
+                        <option value="MARTES">Martes</option>
+                        <option value="MIERCOLES">Miércoles</option>
+                        <option value="JUEVES">Jueves</option>
+                        <option value="VIERNES">Viernes</option>
+                        <option value="SABADO">Sábado</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5 mt-6">
+                <button onclick="cerrarModalLaboral()" class="h-10 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Cancelar</button>
+                <button onclick="guardarDatosLaborales()" class="h-10 rounded-xl bg-brand-blue hover:bg-blue-700 text-white text-xs font-semibold">Guardar cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLE DE PERSONAL FALTANTE POR SUCURSAL -->
+    <div id="modal-detalle-sucursal" class="fixed inset-0 z-[76] hidden items-center justify-center bg-zinc-950/55 dark:bg-black/75 backdrop-blur-xs px-4">
+        <div class="surface rounded-2xl p-6 max-w-lg w-full max-h-[85vh] flex flex-col shadow-2xl">
+            <div class="flex justify-between items-start pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                <div>
+                    <h3 id="det-suc-titulo" class="text-base font-semibold text-zinc-950 dark:text-white">Detalle de tienda</h3>
+                    <p id="det-suc-sub" class="text-xs text-zinc-500 mt-0.5"></p>
+                </div>
+                <button onclick="cerrarDetalleSucursal()" class="w-8 h-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="det-suc-body" class="py-4 overflow-y-auto hide-scrollbar space-y-4 text-xs flex-grow"></div>
+            <div class="pt-3 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
+                <button onclick="cerrarDetalleSucursal()" class="h-9 px-5 rounded-xl bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 text-xs font-semibold">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OTROS DESCUENTOS, SANCIONES Y BONOS -->
+    <div id="modal-ajustes-nomina" class="fixed inset-0 z-[78] hidden items-center justify-center bg-zinc-950/55 dark:bg-black/75 backdrop-blur-xs px-4">
+        <div class="surface rounded-2xl p-6 max-w-md w-full max-h-[88vh] flex flex-col shadow-2xl">
+            <div class="flex justify-between items-start pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                <div>
+                    <h3 id="aj-titulo" class="text-base font-semibold text-zinc-950 dark:text-white">Otros descuentos y bonos</h3>
+                    <p id="aj-subtitulo" class="text-xs text-zinc-500 mt-0.5"></p>
+                </div>
+                <button onclick="cerrarModalAjustes()" class="w-8 h-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <input type="hidden" id="aj-dni">
+            <div class="py-4 space-y-3 border-b border-zinc-100 dark:border-zinc-800">
+                <div class="grid grid-cols-2 gap-2.5">
+                    <div>
+                        <label class="label-clean">Tipo de movimiento</label>
+                        <select id="aj-tipo" class="input-clean text-xs">
+                            <option value="DESCUENTO">Descuento / Sanción (-)</option>
+                            <option value="BONO">Bono / Reintegro (+)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-clean">Monto (S/)</label>
+                        <input type="number" step="0.01" min="0.01" id="aj-monto" class="input-clean tabular font-semibold" placeholder="Ej. 50.00">
+                    </div>
+                </div>
+                <div>
+                    <label class="label-clean">Concepto / Detalle</label>
+                    <input type="text" id="aj-concepto" class="input-clean text-xs" placeholder="Ej. Sanción por uniforme, Adelanto de sueldo, Faltante de caja...">
+                </div>
+                <button onclick="guardarAjusteNomina()" class="w-full h-9 rounded-xl bg-brand-blue hover:bg-blue-700 text-white text-xs font-semibold">Agregar a la boleta del mes</button>
+            </div>
+
+            <div class="pt-3 flex-grow overflow-y-auto hide-scrollbar">
+                <p class="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">Movimientos registrados este mes</p>
+                <div id="aj-lista" class="divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL BOLETA DE PAGO IMPRIMIBLE -->
+    <div id="modal-boleta" class="fixed inset-0 z-[82] hidden items-center justify-center bg-zinc-950/65 dark:bg-black/80 backdrop-blur-xs px-4 py-6 overflow-y-auto">
+        <div id="boleta-card" class="bg-white text-zinc-950 rounded-2xl max-w-2xl w-full shadow-2xl border border-zinc-200 overflow-hidden my-auto">
+            <div class="no-print px-5 py-3.5 bg-zinc-50 border-b border-zinc-200 flex justify-between items-center">
+                <span class="text-xs font-semibold text-zinc-600">Vista previa de boleta de pago</span>
+                <div class="flex items-center gap-2">
+                    <button onclick="imprimirBoleta()" class="h-8 px-4 rounded-lg bg-brand-blue hover:bg-blue-700 text-white text-xs font-semibold inline-flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z"/></svg>
+                        Imprimir / PDF
+                    </button>
+                    <button onclick="cerrarBoleta()" class="h-8 px-3 rounded-lg border border-zinc-300 text-zinc-700 hover:bg-zinc-100 text-xs font-medium">Cerrar</button>
+                </div>
+            </div>
+            <div id="boleta-contenido" class="p-7 text-xs leading-relaxed"></div>
+        </div>
+    </div>
+
+    <!-- HEADER RRHH -->
+    <header class="bg-white/85 dark:bg-zinc-950/85 backdrop-blur-md border-b border-zinc-200/70 dark:border-zinc-800/80 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 md:px-6 py-2.5 flex flex-col xl:flex-row justify-between items-center gap-3">
+            <div class="flex items-center justify-between w-full xl:w-auto">
+                <div class="flex items-center gap-2.5 select-none">
+                    <svg viewBox="0 0 280 150" class="h-7 w-auto" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="g1h" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2563EB"/><stop offset="100%" stop-color="#8B5CF6"/></linearGradient>
+                            <linearGradient id="g2h" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#EC4899"/></linearGradient>
+                            <linearGradient id="g3h" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#EC4899"/><stop offset="100%" stop-color="#F97316"/></linearGradient>
+                        </defs>
+                        <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+                            <path d="M 32 110 L 32 65 A 34 34 0 0 1 100 65 L 100 110" stroke="url(#g1h)" stroke-width="32" />
+                            <path d="M 100 110 L 100 65 A 34 34 0 0 1 168 65 L 168 110" stroke="url(#g2h)" stroke-width="32" />
+                            <path d="M 229 13.2 L 229 53.2 M 209 33.2 L 249 33.2" stroke="url(#g3h)" stroke-width="24" />
+                        </g>
+                    </svg>
+                    <div class="flex items-center gap-2">
+                        <span class="font-display font-black text-[18px] text-zinc-950 dark:text-white tracking-tight">MAS<span class="font-bold ml-0.5">Digital</span></span>
+                        <span class="text-[11px] font-semibold text-brand-blue dark:text-blue-400 px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/15">Recursos Humanos</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 xl:hidden">
+                    <button onclick="toggleTheme()" class="w-8 h-8 rounded-lg surface flex items-center justify-center text-zinc-500">
+                        <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>
+                        <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>
+                    </button>
+                    <button onclick="cerrarSesionRRHH()" class="h-8 px-3 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300">Salir</button>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2.5 w-full xl:w-auto overflow-x-auto hide-scrollbar">
+                <nav class="flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/70 dark:border-zinc-800/80">
+                    <button onclick="switchTabRRHH('inicio')" id="tab-inicio" class="nav-tab active">Panel Diario</button>
+                    <button onclick="switchTabRRHH('aprobaciones')" id="tab-aprobaciones" class="nav-tab">
+                        Aprobaciones QR
+                        <span id="badge-pendientes" class="hidden px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white tabular">0</span>
+                    </button>
+                    <button onclick="switchTabRRHH('planilla')" id="tab-planilla" class="nav-tab">Planilla y Boletas</button>
+                    <button onclick="switchTabRRHH('politicas')" id="tab-politicas" class="nav-tab">Políticas y Feriados</button>
+                    <button onclick="switchTabRRHH('personal')" id="tab-personal" class="nav-tab">Personal</button>
+                    <button onclick="switchTabRRHH('sucursales')" id="tab-sucursales" class="nav-tab">Sucursales</button>
+                    <button onclick="switchTabRRHH('auditoria')" id="tab-auditoria" class="nav-tab">Auditoría</button>
+                    <button onclick="switchTabRRHH('maestro')" id="tab-maestro" class="nav-tab">Ajustes</button>
+                </nav>
+
+                <div class="hidden xl:flex items-center gap-2">
+                    <button onclick="toggleTheme()" class="w-9 h-9 rounded-xl surface flex items-center justify-center text-zinc-500">
+                        <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>
+                        <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>
+                    </button>
+                    <button onclick="cerrarSesionRRHH()" class="h-9 px-3.5 rounded-xl surface hover:bg-zinc-50 dark:hover:bg-zinc-900 text-xs font-medium text-zinc-600 dark:text-zinc-300">Salir</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow px-4 md:px-6 py-7 max-w-7xl mx-auto w-full">
+
+        <!-- 0. PANEL DE INICIO EN TIEMPO REAL POR SUCURSAL -->
+        <section id="view-inicio" class="fade-in">
+            <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Monitoreo diario en vivo</h1>
+                        <span id="dash-hora" class="text-[11px] font-mono px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 font-semibold">Hoy</span>
+                    </div>
+                    <p class="text-[13px] text-zinc-500 mt-1">Visualiza cobertura por tienda, quién falta llegar y coordina personal de apoyo en tiempo real.</p>
+                </div>
+                <button onclick="cargarDashboardDiario()" class="h-10 px-4 surface hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200 inline-flex items-center gap-2">
+                    <svg class="w-3.5 h-3.5 text-brand-blue" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                    Actualizar en vivo
+                </button>
+            </div>
+
+            <!-- KPIs Globales del Día -->
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3.5 mb-6">
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-zinc-500">Esperados hoy</p>
+                    <p id="dash-esperados" class="text-2xl font-bold tabular mt-1">-</p>
+                </div>
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Asistieron (A+T)</p>
+                    <p id="dash-presentes" class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular mt-1">-</p>
+                </div>
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-amber-600 dark:text-amber-400 font-medium">Faltan llegar</p>
+                    <p id="dash-pendientes" class="text-2xl font-bold text-amber-600 dark:text-amber-400 tabular mt-1">-</p>
+                </div>
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-red-600 dark:text-red-400 font-medium">Faltas hoy</p>
+                    <p id="dash-faltas" class="text-2xl font-bold text-red-600 dark:text-red-400 tabular mt-1">-</p>
+                </div>
+                <div class="surface rounded-2xl p-4 col-span-2 lg:col-span-1">
+                    <p class="text-xs text-zinc-500">Descanso / Permiso</p>
+                    <p id="dash-descansos" class="text-2xl font-bold text-zinc-600 dark:text-zinc-300 tabular mt-1">-</p>
+                </div>
+            </div>
+
+            <!-- Cobertura por Sucursal -->
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cobertura por tienda / sucursal</h2>
+                <span class="text-[11px] text-zinc-400">Ordenadas por mayor necesidad de personal</span>
+            </div>
+            <div id="dash-sucursales-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="col-span-full surface rounded-2xl p-12 text-center text-xs text-zinc-400">Cargando estado de tiendas...</div>
+            </div>
+        </section>
+
+        <!-- 1. APROBACIONES DE CÓDIGOS QR -->
+        <section id="view-aprobaciones" class="hidden fade-in">
+            <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Aprobaciones de QR</h1>
+                    <p class="text-[13px] text-zinc-500 mt-1">Solicitudes enviadas por administradores de tienda para colaboradores sin biometría o con celular dañado.</p>
+                </div>
+                <button onclick="cargarSolicitudesQR()" class="h-10 px-4 surface rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200">Actualizar bandeja</button>
+            </div>
+            <div id="lista-solicitudes-qr" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="col-span-full surface rounded-2xl p-12 text-center text-xs text-zinc-400">Cargando solicitudes...</div>
+            </div>
+        </section>
+
+        <!-- 2. PLANILLA Y CÁLCULO DE SUELDOS -->
+        <section id="view-planilla" class="hidden fade-in">
+            <div class="mb-6 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Planilla y cálculo de sueldos</h1>
+                    <p class="text-[13px] text-zinc-500 mt-1">Cálculo automático de descuentos por faltas, tardanzas y pagos dobles/triples por feriados.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                    <select id="planilla-sucursal" onchange="cargarPlanillaMensual()" class="input-clean !w-auto h-10 text-xs font-medium">
+                        <option value="ALL">Todas las sucursales</option>
+                    </select>
+                    <select id="planilla-mes" onchange="cargarPlanillaMensual()" class="input-clean !w-auto h-10 text-xs font-medium">
+                        <option value="0">Mes actual</option>
+                        <option value="1">Mes anterior</option>
+                    </select>
+                    <button onclick="exportarPlanillaCSV()" class="h-10 px-4 bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Exportar CSV</button>
+                    <button onclick="cargarPlanillaMensual()" class="h-10 px-4 surface rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200">Recalcular</button>
+                </div>
+            </div>
+
+            <!-- Resumen Totales -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-5">
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-zinc-500">Total Sueldos Base</p>
+                    <p id="kpi-base" class="text-xl font-bold tabular mt-1">S/ 0.00</p>
+                </div>
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-zinc-500">Total Descuentos</p>
+                    <p id="kpi-desc" class="text-xl font-bold text-red-600 dark:text-red-400 tabular mt-1">- S/ 0.00</p>
+                </div>
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-zinc-500">Bonos Feriados (2x/3x)</p>
+                    <p id="kpi-feriados" class="text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular mt-1">+ S/ 0.00</p>
+                </div>
+                <div class="surface rounded-2xl p-4">
+                    <p class="text-xs text-zinc-500">Neto Total a Pagar</p>
+                    <p id="kpi-neto" class="text-xl font-bold text-brand-blue dark:text-blue-400 tabular mt-1">S/ 0.00</p>
+                </div>
+            </div>
+
+            <div class="surface rounded-2xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-zinc-50/80 dark:bg-zinc-900/60 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-200/70 dark:border-zinc-800/80">
+                            <tr>
+                                <th class="py-3.5 px-4">Colaborador / Sede</th>
+                                <th class="py-3.5 px-4 text-right">Sueldo Base</th>
+                                <th class="py-3.5 px-4 text-center">Asist. / Faltas</th>
+                                <th class="py-3.5 px-4 text-center">Mins Tarde</th>
+                                <th class="py-3.5 px-4 text-center">Feriados (2x/3x)</th>
+                                <th class="py-3.5 px-4 text-right text-red-600">Otros Desc.</th>
+                                <th class="py-3.5 px-4 text-right text-red-600">Total Desc.</th>
+                                <th class="py-3.5 px-4 text-right text-emerald-600">Bonos</th>
+                                <th class="py-3.5 px-4 text-right text-brand-blue">Sueldo Real</th>
+                                <th class="py-3.5 px-4 text-right">Boleta / Ajustes</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-planilla" class="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+                            <tr><td colspan="10" class="py-16 text-center text-zinc-400">Cargando cálculo de planilla...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. POLÍTICAS DE DESCUENTOS Y FERIADOS -->
+        <section id="view-politicas" class="hidden fade-in">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Políticas de descuentos y feriados</h1>
+                <p class="text-[13px] text-zinc-500 mt-1">Configura las reglas de cálculo que aplican automáticamente a la planilla mensual.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Reglas de descuentos -->
+                <div class="lg:col-span-2 surface rounded-2xl p-6 space-y-5">
+                    <h2 class="text-sm font-semibold pb-3 border-b border-zinc-100 dark:border-zinc-800">Reglas de descuentos y bonificaciones</h2>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800">
+                            <label class="label-clean">Falta Lunes a Jueves</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <select id="pol-tipo-lj" class="input-clean text-xs">
+                                    <option value="DIAS">Factor días</option>
+                                    <option value="MONTO">Monto fijo (S/)</option>
+                                </select>
+                                <input type="number" step="0.1" min="0" id="pol-val-lj" class="input-clean tabular font-semibold" placeholder="1">
+                            </div>
+                            <p class="text-[11px] text-zinc-400 mt-1.5">Ej: Factor 1 = 1 día de sueldo, o Monto fijo en S/.</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800">
+                            <label class="label-clean">Falta Viernes / Fin de semana</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <select id="pol-tipo-fs" class="input-clean text-xs">
+                                    <option value="DIAS">Factor días</option>
+                                    <option value="MONTO">Monto fijo (S/)</option>
+                                </select>
+                                <input type="number" step="0.1" min="0" id="pol-val-fs" class="input-clean tabular font-semibold" placeholder="2">
+                            </div>
+                            <p class="text-[11px] text-zinc-400 mt-1.5">Ej: Factor 2 = doble descuento, o Monto fijo en S/.</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800">
+                            <label class="label-clean">Descuento por minuto tarde</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <select id="pol-tipo-min" class="input-clean text-xs">
+                                    <option value="PROPORCIONAL">Proporcional</option>
+                                    <option value="MONTO">Monto x min (S/)</option>
+                                </select>
+                                <input type="number" step="0.05" min="0" id="pol-val-min" class="input-clean tabular font-semibold" placeholder="1">
+                            </div>
+                            <p class="text-[11px] text-zinc-400 mt-1.5">Proporcional (1 = valor exacto del minuto) o S/ por minuto.</p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-zinc-50 dark:bg-zinc-900/60 border border-zinc-200/70 dark:border-zinc-800">
+                            <label class="label-clean">Pago de Feriados Trabajados</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <span class="text-[10px] text-zinc-400 block mb-1">Feriado normal (x)</span>
+                                    <input type="number" step="0.5" min="1" id="pol-fer-normal" class="input-clean tabular font-semibold" placeholder="2">
+                                </div>
+                                <div>
+                                    <span class="text-[10px] text-zinc-400 block mb-1">En día descanso (x)</span>
+                                    <input type="number" step="0.5" min="1" id="pol-fer-descanso" class="input-clean tabular font-semibold" placeholder="3">
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-zinc-400 mt-1.5">2 = Pago doble (+1 día), 3 = Pago triple (+2 días).</p>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end pt-2">
+                        <button onclick="guardarPoliticas()" class="h-10 px-6 bg-brand-blue hover:bg-blue-700 text-white rounded-xl text-xs font-semibold">Guardar políticas</button>
+                    </div>
+                </div>
+
+                <!-- Calendario de Feriados -->
+                <div class="surface rounded-2xl p-6 flex flex-col">
+                    <h2 class="text-sm font-semibold pb-3 border-b border-zinc-100 dark:border-zinc-800 mb-4">Calendario de feriados</h2>
+                    <div class="space-y-2.5 mb-4">
+                        <input type="date" id="fer-fecha" class="input-clean text-xs">
+                        <div class="flex gap-2">
+                            <input type="text" id="fer-desc" class="input-clean text-xs" placeholder="Nombre del feriado...">
+                            <button onclick="agregarFeriado()" class="h-10 px-4 bg-zinc-950 dark:bg-zinc-50 text-white dark:text-zinc-950 rounded-xl text-xs font-semibold shrink-0">Añadir</button>
+                        </div>
+                    </div>
+                    <div id="lista-feriados" class="flex-grow overflow-y-auto max-h-[280px] divide-y divide-zinc-100 dark:divide-zinc-800 text-xs"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. PERSONAL GLOBAL (SUELDO, DESCANSO, SUCURSAL, QR Y BIOMETRÍA) -->
+        <section id="view-personal" class="hidden fade-in">
+            <div class="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Personal corporativo</h1>
+                    <p class="text-[13px] text-zinc-500 mt-1">Configura sueldos, días de descanso, asignación de sucursal, biometría y códigos QR.</p>
+                </div>
+                <div class="flex flex-wrap gap-2.5 w-full md:w-auto">
+                    <select id="personal-filtro-suc" onchange="cargarPersonalRRHH()" class="input-clean !w-auto h-10 text-xs font-medium">
+                        <option value="ALL">Todas las sucursales</option>
+                    </select>
+                    <input type="text" id="search-personal" onkeyup="filtrarPersonalRRHH()" class="input-clean !w-56 h-10 text-xs" placeholder="Buscar nombre o DNI...">
+                </div>
+            </div>
+
+            <div class="surface rounded-2xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-zinc-50/80 dark:bg-zinc-900/60 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-200/70 dark:border-zinc-800/80">
+                            <tr>
+                                <th class="py-3.5 px-4">Colaborador</th>
+                                <th class="py-3.5 px-4">Sucursal</th>
+                                <th class="py-3.5 px-4 text-right">Sueldo Base</th>
+                                <th class="py-3.5 px-4 text-center">Descanso</th>
+                                <th class="py-3.5 px-4 text-center">Biometría / QR</th>
+                                <th class="py-3.5 px-4 text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-personal-rrhh" class="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+                            <tr><td colspan="6" class="py-16 text-center text-zinc-400">Cargando personal...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. SUCURSALES / TIENDAS -->
+        <section id="view-sucursales" class="hidden fade-in">
+            <div class="mb-6">
+                <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Sucursales y tiendas</h1>
+                <p class="text-[13px] text-zinc-500 mt-1">Cada tienda tiene su propia geocerca GPS, horario, tolerancia y clave de administrador.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Lista de sucursales -->
+                <div class="lg:col-span-5 space-y-3" id="lista-sucursales-cards"></div>
+
+                <!-- Editor de sucursal -->
+                <div class="lg:col-span-7 surface rounded-2xl p-6">
+                    <div class="flex justify-between items-center pb-3 mb-4 border-b border-zinc-100 dark:border-zinc-800">
+                        <h2 id="suc-form-title" class="text-sm font-semibold">Nueva sucursal / tienda</h2>
+                        <button onclick="limpiarFormSucursal()" class="text-xs text-brand-blue font-medium">Limpiar / Nueva</button>
+                    </div>
+                    <input type="hidden" id="suc-id">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-4">
+                        <div class="sm:col-span-2">
+                            <label class="label-clean">Nombre de la tienda / sucursal</label>
+                            <input type="text" id="suc-nombre" class="input-clean" placeholder="Ej. Tienda Miraflores">
+                        </div>
+                        <div>
+                            <label class="label-clean">Hora de ingreso</label>
+                            <input type="time" id="suc-hora" class="input-clean tabular" value="09:00">
+                        </div>
+                        <div>
+                            <label class="label-clean">Tolerancia (min)</label>
+                            <input type="number" id="suc-tol" class="input-clean tabular" value="10" min="0">
+                        </div>
+                        <div>
+                            <label class="label-clean">Radio GPS (metros)</label>
+                            <input type="number" id="suc-radio" oninput="actualizarRadioMapaSuc()" class="input-clean tabular" value="45" min="15">
+                        </div>
+                        <div>
+                            <label class="label-clean">Clave Admin de Tienda</label>
+                            <input type="text" id="suc-pass" class="input-clean" placeholder="Ej. miraflores123">
+                        </div>
+                        <div>
+                            <label class="label-clean">Latitud</label>
+                            <input type="text" id="suc-lat" class="input-clean tabular text-xs text-zinc-500" readonly value="-12.046374">
+                        </div>
+                        <div>
+                            <label class="label-clean">Longitud</label>
+                            <input type="text" id="suc-lng" class="input-clean tabular text-xs text-zinc-500" readonly value="-77.042793">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="label-clean !mb-0">Ubicación exacta de la tienda</span>
+                            <button type="button" onclick="ubicarEnMapaSuc()" class="text-xs text-brand-blue font-medium">Usar mi GPS actual</button>
+                        </div>
+                        <div id="map-sucursal"></div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button onclick="guardarSucursalForm()" class="h-10 px-6 bg-brand-blue hover:bg-blue-700 text-white rounded-xl text-xs font-semibold">Guardar sucursal</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. AUDITORÍA DE CAMBIOS -->
+        <section id="view-auditoria" class="hidden fade-in">
+            <div class="mb-6 flex justify-between items-end">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Auditoría de seguridad</h1>
+                    <p class="text-[13px] text-zinc-500 mt-1">Registro inmutable de todos los cambios manuales, aprobaciones y desvinculaciones.</p>
+                </div>
+                <button onclick="cargarAuditoria()" class="h-10 px-4 surface rounded-xl text-xs font-semibold">Actualizar</button>
+            </div>
+            <div class="surface rounded-2xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-zinc-50/80 dark:bg-zinc-900/60 text-[11px] font-semibold text-zinc-500 uppercase border-b border-zinc-200/70 dark:border-zinc-800">
+                            <tr>
+                                <th class="py-3 px-4">Fecha y Hora</th>
+                                <th class="py-3 px-4">Acción</th>
+                                <th class="py-3 px-4">DNI / Ref</th>
+                                <th class="py-3 px-4">Cambio</th>
+                                <th class="py-3 px-4">Motivo / Detalle</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-auditoria" class="divide-y divide-zinc-100 dark:divide-zinc-800/70"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. AJUSTES MAESTROS -->
+        <section id="view-maestro" class="hidden fade-in">
+            <div class="max-w-xl mx-auto">
+                <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white mb-1">Ajustes maestros</h1>
+                <p class="text-[13px] text-zinc-500 mb-6">Configuración general de la empresa y contraseñas de acceso.</p>
+                <div class="surface rounded-2xl p-6 space-y-4">
+                    <div>
+                        <label class="label-clean">Nombre comercial de la empresa</label>
+                        <input type="text" id="cfg-empresa" class="input-clean">
+                    </div>
+                    <div>
+                        <label class="label-clean">Nueva clave Admin General (opcional)</label>
+                        <input type="password" id="cfg-admin-pass" class="input-clean" placeholder="Dejar vacío para no cambiar">
+                    </div>
+                    <div>
+                        <label class="label-clean">Nueva clave Maestra RRHH (opcional)</label>
+                        <input type="password" id="cfg-rrhh-pass" class="input-clean" placeholder="Dejar vacío para no cambiar">
+                    </div>
+                    <div class="pt-3 flex justify-end">
+                        <button onclick="guardarAjustesMaestros()" class="h-10 px-6 bg-brand-blue hover:bg-blue-700 text-white rounded-xl text-xs font-semibold">Guardar configuración</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+        }
+        if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+
+        var rrhhPass = sessionStorage.getItem('mas_rrhh_pass') || '';
+        var sucursalesCache = [];
+        var personalCache = [];
+        var planillaCache = [];
+        var planillaMeta = { nombreEmpresa: 'MAS Digital', mesNombre: '', anioMes: '' };
+        var dashboardCache = null;
+        var pendingConfirmCb = null;
+
+        function abrirConfirm(titulo, mensaje, onConfirm) {
+            document.getElementById('confirm-title').innerText = titulo;
+            document.getElementById('confirm-msg').innerText = mensaje;
+            pendingConfirmCb = onConfirm;
+            var m = document.getElementById('confirm-modal');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+
+        function cerrarConfirm(ok) {
+            var m = document.getElementById('confirm-modal');
+            m.classList.add('hidden'); m.classList.remove('flex');
+            if (ok && typeof pendingConfirmCb === 'function') {
+                var cb = pendingConfirmCb;
+                pendingConfirmCb = null;
+                cb();
+            } else {
+                pendingConfirmCb = null;
+            }
+        }
+
+        function showLoader(text) {
+            var txt = document.getElementById('loader-text');
+            if (txt) txt.innerText = text || 'Procesando...';
+            var el = document.getElementById('loader-overlay');
+            if (el) { el.classList.remove('hidden'); el.classList.add('flex'); }
+        }
+        function hideLoader() {
+            var el = document.getElementById('loader-overlay');
+            if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+        }
+        function showToast(msg, isError) {
+            var toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            document.getElementById('toast-icon').innerHTML = isError
+                ? '<svg class="w-4 h-4 text-red-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>'
+                : '<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>';
+            toast.classList.remove('translate-y-16', 'opacity-0');
+            setTimeout(function() { toast.classList.add('translate-y-16', 'opacity-0'); }, 3000);
+        }
+
+        function loginRRHH() {
+            var p = document.getElementById('login-rrhh-pass').value.trim();
+            if (!p) return showToast("Ingresa la contraseña maestra", true);
+            showLoader("Validando acceso RRHH...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                if (r && r.success) {
+                    rrhhPass = p;
+                    sessionStorage.setItem('mas_rrhh_pass', p);
+                    document.getElementById('rrhh-login-screen').classList.add('hidden');
+                    iniciarPortalRRHH();
+                } else if (r && r.message === 'Acción no reconocida') {
+                    showToast("Publica la última versión de codigo.gs en Apps Script", true);
+                } else {
+                    showToast((r && r.message) ? r.message : "Contraseña RRHH incorrecta", true);
+                }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de conexión con Apps Script", true);
+            }).verificarPasswordRRHH(p);
+        }
+
+        function cerrarSesionRRHH() {
+            rrhhPass = '';
+            sessionStorage.removeItem('mas_rrhh_pass');
+            document.getElementById('login-rrhh-pass').value = '';
+            document.getElementById('rrhh-login-screen').classList.remove('hidden');
+        }
+
+        function switchTabRRHH(tab) {
+            var tabs = ['inicio', 'aprobaciones', 'planilla', 'politicas', 'personal', 'sucursales', 'auditoria', 'maestro'];
+            tabs.forEach(function(t) {
+                document.getElementById('view-' + t).classList.add('hidden');
+                document.getElementById('tab-' + t).classList.remove('active');
+            });
+            document.getElementById('view-' + tab).classList.remove('hidden');
+            document.getElementById('tab-' + tab).classList.add('active');
+
+            if (tab === 'inicio') cargarDashboardDiario();
+            if (tab === 'aprobaciones') cargarSolicitudesQR();
+            if (tab === 'planilla') cargarPlanillaMensual();
+            if (tab === 'politicas') { cargarPoliticas(); cargarFeriados(); }
+            if (tab === 'personal') cargarPersonalRRHH();
+            if (tab === 'sucursales') { cargarSucursalesRRHH(); setTimeout(function(){ if (mapSuc) mapSuc.invalidateSize(); }, 250); }
+            if (tab === 'auditoria') cargarAuditoria();
+            if (tab === 'maestro') cargarAjustesMaestros();
+        }
+
+        function iniciarPortalRRHH() {
+            cargarSucursalesSelects(function() {
+                switchTabRRHH('inicio');
+            });
+        }
+
+        /* --- 0. PANEL DIARIO EN TIEMPO REAL --- */
+        function cargarDashboardDiario() {
+            var grid = document.getElementById('dash-sucursales-grid');
+            grid.innerHTML = '<div class="col-span-full surface rounded-2xl p-12 text-center text-xs text-zinc-400">Consultando asistencia en tiempo real...</div>';
+            google.script.run.withSuccessHandler(function(res) {
+                if (!res || !res.success) {
+                    grid.innerHTML = '<div class="col-span-full surface rounded-2xl p-10 text-center text-xs text-red-500">' + ((res && res.message) ? res.message : 'No se pudo cargar el monitoreo.') + '</div>';
+                    return;
+                }
+                dashboardCache = res;
+                var g = res.global;
+                document.getElementById('dash-hora').innerText = res.fecha + ' · ' + res.horaActualizacion;
+                document.getElementById('dash-esperados').innerText = g.esperadosHoy;
+                document.getElementById('dash-presentes').innerText = g.puntuales + g.tardes;
+                document.getElementById('dash-pendientes').innerText = g.pendientesLlegar;
+                document.getElementById('dash-faltas').innerText = g.faltas;
+                document.getElementById('dash-descansos').innerText = g.descansosPermisos;
+
+                var badge = document.getElementById('badge-pendientes');
+                if (g.pendientesQR > 0) { badge.innerText = g.pendientesQR; badge.classList.remove('hidden'); }
+                else { badge.classList.add('hidden'); }
+
+                grid.innerHTML = '';
+                if (!res.sucursales || res.sucursales.length === 0) {
+                    grid.innerHTML = '<div class="col-span-full surface rounded-2xl p-10 text-center text-xs text-zinc-400">No hay sucursales registradas.</div>';
+                    return;
+                }
+
+                res.sucursales.forEach(function(s) {
+                    var alertaCritica = s.ausentesTotal > 0 && s.cobertura < 75;
+                    var alertaMedia = s.ausentesTotal > 0 && s.cobertura >= 75;
+                    var estadoBadge = alertaCritica
+                        ? '<span class="px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-500/15 text-red-600 dark:text-red-400 text-[10px] font-semibold">Requiere apoyo</span>'
+                        : (alertaMedia
+                            ? '<span class="px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] font-semibold">Personal pendiente</span>'
+                            : '<span class="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-semibold">Completa</span>');
+                    var barColor = alertaCritica ? 'bg-red-500' : (alertaMedia ? 'bg-amber-500' : 'bg-emerald-500');
+
+                    grid.innerHTML +=
+                        '<div class="surface rounded-2xl p-5 flex flex-col justify-between gap-4">' +
+                            '<div>' +
+                                '<div class="flex justify-between items-start gap-2 mb-3">' +
+                                    '<div>' +
+                                        '<h3 class="font-semibold text-sm text-zinc-950 dark:text-white">' + s.nombre + '</h3>' +
+                                        '<p class="text-[11px] text-zinc-400">Ingreso ' + s.horaIngreso + ' · ' + s.esperadosHoy + ' esperados hoy</p>' +
+                                    '</div>' +
+                                    estadoBadge +
+                                '</div>' +
+                                '<div class="mb-3">' +
+                                    '<div class="flex justify-between text-[11px] mb-1">' +
+                                        '<span class="text-zinc-500">Cobertura actual</span>' +
+                                        '<span class="font-semibold tabular">' + s.presentes + '/' + s.esperadosHoy + ' (' + s.cobertura + '%)</span>' +
+                                    '</div>' +
+                                    '<div class="h-1.5 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">' +
+                                        '<div class="h-full ' + barColor + ' rounded-full transition-all" style="width:' + s.cobertura + '%"></div>' +
+                                    '</div>' +
+                                '</div>' +
+                                '<div class="grid grid-cols-3 gap-2 text-center bg-zinc-50 dark:bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-200/60 dark:border-zinc-800">' +
+                                    '<div><span class="block text-[10px] text-zinc-400">Presentes</span><span class="font-bold text-emerald-600 dark:text-emerald-400 tabular">' + s.presentes + '</span></div>' +
+                                    '<div><span class="block text-[10px] text-zinc-400">Faltan llegar</span><span class="font-bold text-amber-600 dark:text-amber-400 tabular">' + s.pendientesLlegar + '</span></div>' +
+                                    '<div><span class="block text-[10px] text-zinc-400">Faltas</span><span class="font-bold text-red-600 dark:text-red-400 tabular">' + s.faltas + '</span></div>' +
+                                '</div>' +
+                            '</div>' +
+                            '<button onclick="abrirDetalleSucursal(\'' + s.id + '\')" class="w-full h-9 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-xs font-semibold transition-colors">Ver quién falta / coordinar</button>' +
+                        '</div>';
+                });
+            }).withFailureHandler(function() {
+                grid.innerHTML = '<div class="col-span-full surface rounded-2xl p-10 text-center text-xs text-red-500">Error de red al consultar el panel diario.</div>';
+            }).obtenerDashboardDiarioRRHH(rrhhPass);
+        }
+
+        function abrirDetalleSucursal(sucId) {
+            if (!dashboardCache || !dashboardCache.sucursales) return;
+            var s = dashboardCache.sucursales.find(function(x) { return x.id === sucId; });
+            if (!s) return;
+            document.getElementById('det-suc-titulo').innerText = s.nombre + ' (' + s.cobertura + '% cobertura)';
+            document.getElementById('det-suc-sub').innerText = s.presentes + ' presentes · ' + s.pendientesLlegar + ' por llegar · ' + s.faltas + ' faltas';
+
+            var html = '';
+            if (s.listaPendientes.length > 0) {
+                html += '<div><p class="font-semibold text-amber-600 dark:text-amber-400 mb-2">Faltan llegar (' + s.listaPendientes.length + ')</p><div class="divide-y divide-zinc-100 dark:divide-zinc-800 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">';
+                s.listaPendientes.forEach(function(p) {
+                    html += '<div class="p-2.5 flex justify-between items-center"><div><span class="font-medium text-zinc-900 dark:text-zinc-100">' + p.nombres + '</span><span class="block text-[11px] text-zinc-400">' + p.cargo + ' · DNI ' + p.dni + '</span></div>' + (p.celular ? '<a href="tel:' + p.celular + '" class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/15 text-brand-blue dark:text-blue-400 font-semibold">Llamar</a>' : '') + '</div>';
+                });
+                html += '</div></div>';
+            }
+            if (s.listaFaltas.length > 0) {
+                html += '<div><p class="font-semibold text-red-600 dark:text-red-400 mb-2">Faltas registradas (' + s.listaFaltas.length + ')</p><div class="divide-y divide-zinc-100 dark:divide-zinc-800 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">';
+                s.listaFaltas.forEach(function(p) {
+                    html += '<div class="p-2.5 flex justify-between items-center"><div><span class="font-medium text-zinc-900 dark:text-zinc-100">' + p.nombres + '</span><span class="block text-[11px] text-zinc-400">' + p.cargo + ' · DNI ' + p.dni + '</span></div><span class="text-red-500 font-semibold">Falta</span></div>';
+                });
+                html += '</div></div>';
+            }
+            if (s.listaPresentes.length > 0) {
+                html += '<div><p class="font-semibold text-emerald-600 dark:text-emerald-400 mb-2">En tienda (' + s.listaPresentes.length + ')</p><div class="divide-y divide-zinc-100 dark:divide-zinc-800 border border-zinc-200/70 dark:border-zinc-800 rounded-xl">';
+                s.listaPresentes.forEach(function(p) {
+                    html += '<div class="p-2.5 flex justify-between items-center"><div><span class="font-medium text-zinc-900 dark:text-zinc-100">' + p.nombres + '</span><span class="block text-[11px] text-zinc-400">' + p.cargo + '</span></div><span class="tabular text-zinc-500">' + (p.horaExacta || p.estado) + (p.estado === 'T' ? ' <b class="text-amber-600">+' + p.minutosTarde + 'm</b>' : '') + '</span></div>';
+                });
+                html += '</div></div>';
+            }
+            if (!html) html = '<p class="text-center text-zinc-400 py-8">Sin personal programado para hoy en esta sede.</p>';
+
+            document.getElementById('det-suc-body').innerHTML = html;
+            var m = document.getElementById('modal-detalle-sucursal');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+
+        function cerrarDetalleSucursal() {
+            var m = document.getElementById('modal-detalle-sucursal');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        }
+
+        /* --- 1. APROBACIONES QR --- */
+        function cargarSolicitudesQR() {
+            var cont = document.getElementById('lista-solicitudes-qr');
+            cont.innerHTML = '<div class="col-span-full surface rounded-2xl p-10 text-center text-xs text-zinc-400">Consultando solicitudes...</div>';
+            google.script.run.withSuccessHandler(function(res) {
+                var lista = (res && res.success) ? (res.data || []) : [];
+                var badge = document.getElementById('badge-pendientes');
+                if (lista.length > 0) {
+                    badge.innerText = lista.length;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+                if (lista.length === 0) {
+                    cont.innerHTML = '<div class="col-span-full surface rounded-2xl p-12 text-center text-xs text-zinc-400">No hay solicitudes de Código QR pendientes de aprobación.</div>';
+                    return;
+                }
+                cont.innerHTML = '';
+                lista.forEach(function(emp) {
+                    cont.innerHTML +=
+                        '<div class="surface rounded-2xl p-5 flex flex-col justify-between gap-4">' +
+                            '<div>' +
+                                '<div class="flex justify-between items-start gap-2">' +
+                                    '<div>' +
+                                        '<h3 class="font-semibold text-sm text-zinc-950 dark:text-white">' + emp.nombres + ' ' + emp.apellidos + '</h3>' +
+                                        '<p class="text-xs text-zinc-500 mt-0.5">DNI ' + emp.dni + ' · ' + (emp.cargo || 'Colaborador') + '</p>' +
+                                    '</div>' +
+                                    '<span class="px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/15 text-brand-blue dark:text-blue-400 text-[11px] font-semibold">' + emp.sucursalNombre + '</span>' +
+                                '</div>' +
+                                '<div class="mt-3 p-3 rounded-xl bg-amber-50/70 dark:bg-amber-500/10 border border-amber-200/70 dark:border-amber-500/20 text-xs text-amber-800 dark:text-amber-300">' +
+                                    '<span class="font-semibold block text-[11px] mb-0.5">Motivo reportado por tienda:</span>' +
+                                    (emp.motivoQR || 'Sin detalle') +
+                                '</div>' +
+                                '<p class="text-[11px] text-zinc-400 mt-2">Correo de envío: ' + (emp.email || 'Sin correo registrado') + '</p>' +
+                            '</div>' +
+                            '<div class="grid grid-cols-2 gap-2.5">' +
+                                '<button onclick="rechazarSolicitudQR(\'' + emp.dni + '\')" class="h-9 rounded-xl border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-xs font-semibold">Rechazar</button>' +
+                                '<button onclick="aprobarSolicitudQR(\'' + emp.dni + '\', \'' + String(emp.motivoQR || 'Aprobado por RRHH').replace(/'/g, '') + '\')" class="h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Aprobar y enviar QR</button>' +
+                            '</div>' +
+                        '</div>';
+                });
+            }).withFailureHandler(function() {
+                cont.innerHTML = '<div class="col-span-full surface rounded-2xl p-10 text-center text-xs text-red-500">Error de red al consultar solicitudes.</div>';
+            }).obtenerSolicitudesQR(rrhhPass);
+        }
+
+        function aprobarSolicitudQR(dni, motivo) {
+            showLoader("Aprobando y enviando QR...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || (r.success ? "Aprobado" : "Error"), !r.success);
+                if (r.success) {
+                    cargarSolicitudesQR();
+                    if (!document.getElementById('view-personal').classList.contains('hidden')) cargarPersonalRRHH();
+                }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de conexión al aprobar QR", true);
+            }).autorizarQR(dni, motivo || "Aprobado por RRHH", rrhhPass);
+        }
+
+        function rechazarSolicitudQR(dni) {
+            abrirConfirm("Rechazar solicitud QR", "El colaborador no recibirá código QR y deberá registrar asistencia biométrica.", function() {
+                showLoader("Rechazando solicitud...");
+                google.script.run.withSuccessHandler(function(r) {
+                    hideLoader();
+                    showToast(r.message || "Solicitud rechazada", !r.success);
+                    if (r.success) cargarSolicitudesQR();
+                }).withFailureHandler(function() {
+                    hideLoader();
+                    showToast("Error de conexión al rechazar", true);
+                }).rechazarQR(dni, "Rechazado por Recursos Humanos", rrhhPass);
+            });
+        }
+
+        /* --- 2. PLANILLA Y SUELDOS --- */
+        function cargarPlanillaMensual() {
+            var suc = document.getElementById('planilla-sucursal').value;
+            var offset = document.getElementById('planilla-mes').value;
+            var tb = document.getElementById('tbody-planilla');
+            tb.innerHTML = '<tr><td colspan="10" class="py-12 text-center text-zinc-400">Calculando planilla y descuentos...</td></tr>';
+
+            google.script.run.withSuccessHandler(function(res) {
+                if (!res || !res.success) {
+                    tb.innerHTML = '<tr><td colspan="10" class="py-12 text-center text-red-500">' + ((res && res.message) ? res.message : 'No se pudo calcular la planilla.') + '</td></tr>';
+                    return;
+                }
+                planillaCache = res.data || [];
+                planillaMeta = {
+                    nombreEmpresa: res.nombreEmpresa || 'MAS Digital',
+                    mesNombre: res.mesNombre || '',
+                    anioMes: res.anioMes || ''
+                };
+                tb.innerHTML = '';
+                var tBase = 0, tDesc = 0, tBonos = 0, tNeto = 0;
+
+                if (planillaCache.length === 0) {
+                    tb.innerHTML = '<tr><td colspan="10" class="py-12 text-center text-zinc-400">No hay colaboradores registrados para este filtro.</td></tr>';
+                } else {
+                    planillaCache.forEach(function(p) {
+                        var totalBonosEmp = (p.totalBonosFeriados || 0) + (p.otrosBonos || 0);
+                        tBase += p.sueldoBase;
+                        tDesc += p.totalDescuentos;
+                        tBonos += totalBonosEmp;
+                        tNeto += p.sueldoNeto;
+                        var totalFaltas = (p.faltasLunJue || 0) + (p.faltasFinSem || 0);
+
+                        tb.innerHTML +=
+                            '<tr class="hover:bg-zinc-50/70 dark:hover:bg-zinc-900/40">' +
+                                '<td class="py-3 px-4"><div class="font-semibold text-zinc-950 dark:text-zinc-100">' + p.nombres + '</div><div class="text-[11px] text-zinc-400">' + p.dni + ' · ' + p.sucursalNombre + '</div></td>' +
+                                '<td class="py-3 px-4 text-right tabular font-medium">S/ ' + p.sueldoBase.toFixed(2) + '</td>' +
+                                '<td class="py-3 px-4 text-center tabular"><span class="text-emerald-600 font-semibold">' + p.diasAsistidos + '</span> / <span class="text-red-600 font-semibold">' + totalFaltas + '</span></td>' +
+                                '<td class="py-3 px-4 text-center tabular">' + p.minutosTarde + 'm</td>' +
+                                '<td class="py-3 px-4 text-center tabular">' + p.feriadosNormales + ' / ' + p.feriadosDescanso + '</td>' +
+                                '<td class="py-3 px-4 text-right tabular text-zinc-600 dark:text-zinc-300">' + (p.otrosDescuentos > 0 ? '- S/ ' + p.otrosDescuentos.toFixed(2) : '—') + '</td>' +
+                                '<td class="py-3 px-4 text-right tabular text-red-600 dark:text-red-400 font-medium">- S/ ' + p.totalDescuentos.toFixed(2) + '</td>' +
+                                '<td class="py-3 px-4 text-right tabular text-emerald-600 dark:text-emerald-400 font-medium">+ S/ ' + totalBonosEmp.toFixed(2) + '</td>' +
+                                '<td class="py-3 px-4 text-right tabular font-bold text-brand-blue dark:text-blue-400">S/ ' + p.sueldoNeto.toFixed(2) + '</td>' +
+                                '<td class="py-3 px-4 text-right whitespace-nowrap">' +
+                                    '<button onclick="abrirModalAjustes(\'' + p.dni + '\')" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[11px] font-medium">+ Ajuste</button> ' +
+                                    '<button onclick="abrirBoleta(\'' + p.dni + '\')" class="px-2.5 py-1 rounded-lg bg-brand-blue hover:bg-blue-700 text-white text-[11px] font-semibold">Boleta</button>' +
+                                '</td>' +
+                            '</tr>';
+                    });
+                }
+
+                document.getElementById('kpi-base').innerText = 'S/ ' + tBase.toFixed(2);
+                document.getElementById('kpi-desc').innerText = '- S/ ' + tDesc.toFixed(2);
+                document.getElementById('kpi-feriados').innerText = '+ S/ ' + tBonos.toFixed(2);
+                document.getElementById('kpi-neto').innerText = 'S/ ' + tNeto.toFixed(2);
+            }).withFailureHandler(function() {
+                tb.innerHTML = '<tr><td colspan="10" class="py-12 text-center text-red-500">Error de conexión al calcular la planilla.</td></tr>';
+            }).calcularPlanillaMensual(offset, suc, rrhhPass);
+        }
+
+        function abrirModalAjustes(dni) {
+            var p = planillaCache.find(function(x) { return String(x.dni) === String(dni); });
+            if (!p) return;
+            document.getElementById('aj-dni').value = p.dni;
+            document.getElementById('aj-titulo').innerText = p.nombres;
+            document.getElementById('aj-subtitulo').innerText = 'Período: ' + planillaMeta.mesNombre + ' · DNI ' + p.dni;
+            document.getElementById('aj-monto').value = '';
+            document.getElementById('aj-concepto').value = '';
+            renderizarListaAjustes(p.ajustesDetalle || []);
+            var m = document.getElementById('modal-ajustes-nomina');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+
+        function cerrarModalAjustes() {
+            var m = document.getElementById('modal-ajustes-nomina');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        }
+
+        function renderizarListaAjustes(lista) {
+            var cont = document.getElementById('aj-lista');
+            cont.innerHTML = '';
+            if (!lista || lista.length === 0) {
+                cont.innerHTML = '<div class="py-5 text-center text-zinc-400">No hay otros descuentos ni bonos este mes.</div>';
+                return;
+            }
+            lista.forEach(function(a) {
+                var esBono = a.tipo === 'BONO';
+                cont.innerHTML +=
+                    '<div class="py-2.5 flex justify-between items-center gap-2">' +
+                        '<div>' +
+                            '<span class="font-medium text-zinc-900 dark:text-zinc-100">' + a.concepto + '</span>' +
+                            '<span class="block text-[10px] text-zinc-400">' + a.tipo + ' · ' + a.fecha + '</span>' +
+                        '</div>' +
+                        '<div class="flex items-center gap-2 shrink-0">' +
+                            '<span class="tabular font-semibold ' + (esBono ? 'text-emerald-600' : 'text-red-600') + '">' + (esBono ? '+' : '-') + ' S/ ' + a.monto.toFixed(2) + '</span>' +
+                            '<button onclick="borrarAjusteNomina(\'' + a.id + '\')" class="text-zinc-400 hover:text-red-600 text-[11px] px-1.5 py-0.5 rounded">Quitar</button>' +
+                        '</div>' +
+                    '</div>';
+            });
+        }
+
+        function guardarAjusteNomina() {
+            var dni = document.getElementById('aj-dni').value;
+            var tipo = document.getElementById('aj-tipo').value;
+            var monto = parseFloat(document.getElementById('aj-monto').value);
+            var concepto = document.getElementById('aj-concepto').value.trim();
+            if (!concepto || concepto.length < 2) return showToast("Ingresa el concepto del ajuste", true);
+            if (isNaN(monto) || monto <= 0) return showToast("Ingresa un monto válido", true);
+
+            showLoader("Guardando ajuste...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || "Guardado", !r.success);
+                if (r.success) {
+                    cerrarModalAjustes();
+                    cargarPlanillaMensual();
+                }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al guardar ajuste", true);
+            }).agregarAjusteNomina(planillaMeta.anioMes, dni, tipo, concepto, monto, rrhhPass);
+        }
+
+        function borrarAjusteNomina(idAjuste) {
+            showLoader("Eliminando ajuste...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || "Eliminado", !r.success);
+                if (r.success) {
+                    cerrarModalAjustes();
+                    cargarPlanillaMensual();
+                }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al eliminar ajuste", true);
+            }).eliminarAjusteNomina(idAjuste, rrhhPass);
+        }
+
+        function abrirBoleta(dni) {
+            var p = planillaCache.find(function(x) { return String(x.dni) === String(dni); });
+            if (!p) return;
+
+            var filasDesc = '';
+            if (p.descFaltaLunJue > 0) filasDesc += '<tr><td class="py-1.5 text-zinc-600">Faltas Lunes a Jueves (' + p.faltasLunJue + ' día/s)</td><td class="py-1.5 text-right tabular text-red-600">- S/ ' + p.descFaltaLunJue.toFixed(2) + '</td></tr>';
+            if (p.descFaltaFinSem > 0) filasDesc += '<tr><td class="py-1.5 text-zinc-600">Faltas Viernes / Fin de semana (' + p.faltasFinSem + ' día/s)</td><td class="py-1.5 text-right tabular text-red-600">- S/ ' + p.descFaltaFinSem.toFixed(2) + '</td></tr>';
+            if (p.descTardanzas > 0) filasDesc += '<tr><td class="py-1.5 text-zinc-600">Tardanzas acumuladas (' + p.minutosTarde + ' min)</td><td class="py-1.5 text-right tabular text-red-600">- S/ ' + p.descTardanzas.toFixed(2) + '</td></tr>';
+            if (p.descSuspensiones > 0) filasDesc += '<tr><td class="py-1.5 text-zinc-600">Suspensiones / Permisos sin goce (' + p.diasSuspension + ' día/s)</td><td class="py-1.5 text-right tabular text-red-600">- S/ ' + p.descSuspensiones.toFixed(2) + '</td></tr>';
+            (p.ajustesDetalle || []).filter(function(a) { return a.tipo !== 'BONO'; }).forEach(function(a) {
+                filasDesc += '<tr><td class="py-1.5 text-zinc-600">' + a.concepto + '</td><td class="py-1.5 text-right tabular text-red-600">- S/ ' + a.monto.toFixed(2) + '</td></tr>';
+            });
+            if (!filasDesc) filasDesc = '<tr><td colspan="2" class="py-2 text-zinc-400">Sin descuentos registrados</td></tr>';
+
+            var filasIng = '<tr><td class="py-1.5 text-zinc-700 font-medium">Remuneración Básica Mensual</td><td class="py-1.5 text-right tabular font-medium">S/ ' + p.sueldoBase.toFixed(2) + '</td></tr>';
+            if (p.totalBonosFeriados > 0) {
+                filasIng += '<tr><td class="py-1.5 text-zinc-600">Bono Feriados Trabajados (' + p.feriadosNormales + ' normal / ' + p.feriadosDescanso + ' en descanso)</td><td class="py-1.5 text-right tabular text-emerald-700">+ S/ ' + p.totalBonosFeriados.toFixed(2) + '</td></tr>';
+            }
+            (p.ajustesDetalle || []).filter(function(a) { return a.tipo === 'BONO'; }).forEach(function(a) {
+                filasIng += '<tr><td class="py-1.5 text-zinc-600">' + a.concepto + '</td><td class="py-1.5 text-right tabular text-emerald-700">+ S/ ' + a.monto.toFixed(2) + '</td></tr>';
+            });
+
+            var totalIngresos = p.sueldoBase + (p.totalBonosFeriados || 0) + (p.otrosBonos || 0);
+            var fechaEmision = new Date().toLocaleDateString('es-PE');
+
+            document.getElementById('boleta-contenido').innerHTML =
+                '<div class="border-b-2 border-zinc-900 pb-4 mb-5 flex justify-between items-start">' +
+                    '<div>' +
+                        '<h2 class="text-lg font-black tracking-tight uppercase">' + planillaMeta.nombreEmpresa + '</h2>' +
+                        '<p class="text-[11px] text-zinc-500">BOLETA DE PAGO DE REMUNERACIONES</p>' +
+                    '</div>' +
+                    '<div class="text-right">' +
+                        '<p class="font-bold text-sm uppercase">' + planillaMeta.mesNombre + '</p>' +
+                        '<p class="text-[11px] text-zinc-500">Emitida: ' + fechaEmision + '</p>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="grid grid-cols-2 gap-3 bg-zinc-50 p-3.5 rounded-xl border border-zinc-200 mb-5">' +
+                    '<div><span class="text-[10px] text-zinc-400 uppercase block">Colaborador</span><span class="font-bold text-sm">' + p.nombres + '</span></div>' +
+                    '<div><span class="text-[10px] text-zinc-400 uppercase block">DNI / Documento</span><span class="font-semibold tabular">' + p.dni + '</span></div>' +
+                    '<div><span class="text-[10px] text-zinc-400 uppercase block">Cargo / Puesto</span><span class="font-medium">' + (p.cargo || '-') + '</span></div>' +
+                    '<div><span class="text-[10px] text-zinc-400 uppercase block">Sucursal / Descanso</span><span class="font-medium">' + p.sucursalNombre + ' · ' + p.diaDescanso + '</span></div>' +
+                '</div>' +
+
+                '<div class="grid grid-cols-5 gap-2 text-center border border-zinc-200 rounded-xl p-2.5 mb-5">' +
+                    '<div><span class="text-[10px] text-zinc-400 block">Días Asistidos</span><span class="font-bold text-sm tabular">' + p.diasAsistidos + '</span></div>' +
+                    '<div><span class="text-[10px] text-zinc-400 block">Días Tarde</span><span class="font-bold text-sm tabular">' + (p.diasTarde || 0) + ' (' + p.minutosTarde + 'm)</span></div>' +
+                    '<div><span class="text-[10px] text-zinc-400 block">Faltas</span><span class="font-bold text-sm tabular">' + (p.faltasLunJue + p.faltasFinSem) + '</span></div>' +
+                    '<div><span class="text-[10px] text-zinc-400 block">Sanc. / S.G.</span><span class="font-bold text-sm tabular">' + (p.diasSuspension || 0) + '</span></div>' +
+                    '<div><span class="text-[10px] text-zinc-400 block">Permisos / V</span><span class="font-bold text-sm tabular">' + (p.diasPermiso || 0) + '</span></div>' +
+                '</div>' +
+
+                '<div class="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-5">' +
+                    '<div>' +
+                        '<h4 class="font-bold text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200 pb-1.5 mb-2">Ingresos</h4>' +
+                        '<table class="w-full">' + filasIng + '</table>' +
+                        '<div class="mt-2 pt-2 border-t border-zinc-200 flex justify-between font-bold"><span>Total Ingresos</span><span class="tabular">S/ ' + totalIngresos.toFixed(2) + '</span></div>' +
+                    '</div>' +
+                    '<div>' +
+                        '<h4 class="font-bold text-[11px] uppercase tracking-wider text-zinc-500 border-b border-zinc-200 pb-1.5 mb-2">Descuentos y Sanciones</h4>' +
+                        '<table class="w-full">' + filasDesc + '</table>' +
+                        '<div class="mt-2 pt-2 border-t border-zinc-200 flex justify-between font-bold text-red-600"><span>Total Descuentos</span><span class="tabular">- S/ ' + p.totalDescuentos.toFixed(2) + '</span></div>' +
+                    '</div>' +
+                '</div>' +
+
+                '<div class="bg-zinc-950 text-white rounded-xl p-4 flex justify-between items-center mb-10">' +
+                    '<span class="font-bold text-xs uppercase tracking-wider">Neto Real a Pagar</span>' +
+                    '<span class="text-xl font-black tabular">S/ ' + p.sueldoNeto.toFixed(2) + '</span>' +
+                '</div>' +
+
+                '<div class="grid grid-cols-2 gap-10 pt-6 text-center text-[11px] text-zinc-500">' +
+                    '<div class="border-t border-zinc-400 pt-2">Firma del Empleador / RRHH</div>' +
+                    '<div class="border-t border-zinc-400 pt-2">Firma del Colaborador (DNI ' + p.dni + ')</div>' +
+                '</div>';
+
+            var m = document.getElementById('modal-boleta');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+
+        function cerrarBoleta() {
+            var m = document.getElementById('modal-boleta');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        }
+
+        function imprimirBoleta() {
+            window.print();
+        }
+
+        function exportarPlanillaCSV() {
+            if (!planillaCache || planillaCache.length === 0) return showToast("No hay datos de planilla para exportar", true);
+            var csv = "\uFEFFDNI,Colaborador,Sucursal,Sueldo Base,Dias Asistidos,Faltas L-J,Faltas V-D,Mins Tarde,Feriados 2x,Feriados 3x,Otros Descuentos,Total Descuentos,Total Bonos,Sueldo Neto\n";
+            planillaCache.forEach(function(p) {
+                var nom = String(p.nombres || "").replace(/"/g, '""');
+                var suc = String(p.sucursalNombre || "").replace(/"/g, '""');
+                var totalBonosEmp = (p.totalBonosFeriados || 0) + (p.otrosBonos || 0);
+                csv += '"' + p.dni + '","' + nom + '","' + suc + '",' + p.sueldoBase.toFixed(2) + ',' + p.diasAsistidos + ',' +
+                    p.faltasLunJue + ',' + p.faltasFinSem + ',' + p.minutosTarde + ',' + p.feriadosNormales + ',' + p.feriadosDescanso + ',' +
+                    (p.otrosDescuentos || 0).toFixed(2) + ',' + p.totalDescuentos.toFixed(2) + ',' + totalBonosEmp.toFixed(2) + ',' + p.sueldoNeto.toFixed(2) + '\n';
+            });
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = "Planilla_RRHH_" + new Date().toISOString().slice(0, 10) + ".csv";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast("Planilla CSV descargada");
+        }
+
+        /* --- 3. POLÍTICAS Y FERIADOS --- */
+        function cargarPoliticas() {
+            google.script.run.withSuccessHandler(function(p) {
+                if (!p) return;
+                document.getElementById('pol-tipo-lj').value = p.tipoDescFaltaLunJue || 'DIAS';
+                document.getElementById('pol-val-lj').value = p.valorDescFaltaLunJue;
+                document.getElementById('pol-tipo-fs').value = p.tipoDescFaltaFinSem || 'DIAS';
+                document.getElementById('pol-val-fs').value = p.valorDescFaltaFinSem;
+                document.getElementById('pol-tipo-min').value = p.tipoDescMinTarde || 'PROPORCIONAL';
+                document.getElementById('pol-val-min').value = p.valorDescMinTarde;
+                document.getElementById('pol-fer-normal').value = p.factorFeriadoTrabajado;
+                document.getElementById('pol-fer-descanso').value = p.factorFeriadoDescanso;
+            }).withFailureHandler(function() {
+                showToast("Error de red al cargar políticas", true);
+            }).obtenerPoliticasNomina();
+        }
+
+        function guardarPoliticas() {
+            var data = {
+                tipoDescFaltaLunJue: document.getElementById('pol-tipo-lj').value,
+                valorDescFaltaLunJue: parseFloat(document.getElementById('pol-val-lj').value) || 0,
+                tipoDescFaltaFinSem: document.getElementById('pol-tipo-fs').value,
+                valorDescFaltaFinSem: parseFloat(document.getElementById('pol-val-fs').value) || 0,
+                tipoDescMinTarde: document.getElementById('pol-tipo-min').value,
+                valorDescMinTarde: parseFloat(document.getElementById('pol-val-min').value) || 0,
+                factorFeriadoTrabajado: parseFloat(document.getElementById('pol-fer-normal').value) || 2,
+                factorFeriadoDescanso: parseFloat(document.getElementById('pol-fer-descanso').value) || 3
+            };
+            showLoader("Guardando políticas...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || "Guardado", !r.success);
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al guardar políticas", true);
+            }).guardarPoliticasNomina(data, rrhhPass);
+        }
+
+        function cargarFeriados() {
+            var cont = document.getElementById('lista-feriados');
+            cont.innerHTML = '<div class="py-6 text-center text-zinc-400">Cargando feriados...</div>';
+            google.script.run.withSuccessHandler(function(lista) {
+                cont.innerHTML = '';
+                if (!lista || lista.length === 0) {
+                    cont.innerHTML = '<div class="py-6 text-center text-zinc-400">Sin feriados registrados.</div>';
+                    return;
+                }
+                lista.forEach(function(f) {
+                    cont.innerHTML +=
+                        '<div class="py-2.5 flex justify-between items-center gap-2">' +
+                            '<div><span class="font-mono font-semibold text-zinc-800 dark:text-zinc-200">' + f.fecha + '</span><span class="block text-[11px] text-zinc-500">' + f.descripcion + '</span></div>' +
+                            '<button onclick="borrarFeriado(\'' + f.fecha + '\')" class="text-red-500 hover:text-red-700 text-[11px] font-medium px-2 py-1 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10">Quitar</button>' +
+                        '</div>';
+                });
+            }).withFailureHandler(function() {
+                cont.innerHTML = '<div class="py-6 text-center text-red-500">Error de red al cargar feriados.</div>';
+            }).obtenerFeriados();
+        }
+
+        function agregarFeriado() {
+            var f = document.getElementById('fer-fecha').value;
+            var d = document.getElementById('fer-desc').value.trim();
+            if (!f) return showToast("Selecciona una fecha", true);
+            showLoader("Agregando feriado...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || "Guardado", !r.success);
+                if (r.success) {
+                    document.getElementById('fer-fecha').value = '';
+                    document.getElementById('fer-desc').value = '';
+                    cargarFeriados();
+                }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al agregar feriado", true);
+            }).guardarFeriado(f, d || "Feriado", rrhhPass);
+        }
+
+        function borrarFeriado(fecha) {
+            showLoader("Eliminando feriado...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || "Eliminado", !r.success);
+                if (r.success) cargarFeriados();
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al eliminar feriado", true);
+            }).eliminarFeriado(fecha, rrhhPass);
+        }
+
+        /* --- 4. PERSONAL GLOBAL --- */
+        function cargarPersonalRRHH() {
+            var suc = document.getElementById('personal-filtro-suc').value;
+            var tb = document.getElementById('tbody-personal-rrhh');
+            tb.innerHTML = '<tr><td colspan="6" class="py-12 text-center text-zinc-400">Cargando personal...</td></tr>';
+            google.script.run.withSuccessHandler(function(emps) {
+                personalCache = emps || [];
+                filtrarPersonalRRHH();
+            }).withFailureHandler(function() {
+                tb.innerHTML = '<tr><td colspan="6" class="py-12 text-center text-red-500">Error de red al cargar personal.</td></tr>';
+            }).obtenerEmpleados(suc);
+        }
+
+        function filtrarPersonalRRHH() {
+            var q = (document.getElementById('search-personal').value || '').toLowerCase().trim();
+            var tb = document.getElementById('tbody-personal-rrhh');
+            var lista = q ? personalCache.filter(function(e) {
+                return (e.nombres + ' ' + e.apellidos).toLowerCase().includes(q) || String(e.dni).includes(q);
+            }) : personalCache;
+
+            tb.innerHTML = '';
+            if (!lista || lista.length === 0) {
+                tb.innerHTML = '<tr><td colspan="6" class="py-12 text-center text-zinc-400">No se encontraron colaboradores.</td></tr>';
+                return;
+            }
+
+            lista.forEach(function(e) {
+                var bioBadge = e.vinculado
+                    ? '<span class="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-semibold">Celular OK</span>'
+                    : '<span class="px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-[10px] font-medium">Sin celular</span>';
+                var qrBadge = e.qrAutorizado
+                    ? '<span class="ml-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-500/15 text-brand-blue dark:text-blue-400 text-[10px] font-semibold">QR Activo</span>'
+                    : (e.estadoQR === 'PENDIENTE'
+                        ? '<span class="ml-1 px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[10px] font-semibold">QR Pendiente</span>'
+                        : '');
+
+                var acciones = '<button onclick="abrirModalLaboral(\'' + e.dni + '\')" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-800 dark:text-zinc-200 text-[11px] font-medium">Configurar</button>';
+                if (e.vinculado) {
+                    acciones += ' <button onclick="desvincularDesdeRRHH(\'' + e.dni + '\')" class="px-2.5 py-1 rounded-lg text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 text-[11px] font-medium">Desvincular</button>';
+                }
+                if (e.qrAutorizado) {
+                    acciones += ' <button onclick="revocarDesdeRRHH(\'' + e.dni + '\')" class="px-2.5 py-1 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 text-[11px] font-medium">Revocar QR</button>';
+                }
+
+                tb.innerHTML +=
+                    '<tr class="hover:bg-zinc-50/70 dark:hover:bg-zinc-900/40">' +
+                        '<td class="py-3 px-4"><div class="font-semibold text-zinc-950 dark:text-zinc-100">' + e.nombres + ' ' + e.apellidos + '</div><div class="text-[11px] text-zinc-400">DNI ' + e.dni + ' · ' + (e.cargo || '') + '</div></td>' +
+                        '<td class="py-3 px-4">' + (e.sucursalNombre || e.sucursalId) + '</td>' +
+                        '<td class="py-3 px-4 text-right tabular font-semibold">S/ ' + (parseFloat(e.sueldoBase) || 0).toFixed(2) + '</td>' +
+                        '<td class="py-3 px-4 text-center text-zinc-500">' + (e.diaDescanso || 'DOMINGO') + '</td>' +
+                        '<td class="py-3 px-4 text-center">' + bioBadge + qrBadge + '</td>' +
+                        '<td class="py-3 px-4 text-right whitespace-nowrap">' + acciones + '</td>' +
+                    '</tr>';
+            });
+        }
+
+        function abrirModalLaboral(dni) {
+            var emp = personalCache.find(function(x) { return String(x.dni) === String(dni); });
+            if (!emp) return;
+            document.getElementById('lab-dni').value = emp.dni;
+            document.getElementById('lab-titulo').innerText = emp.nombres + ' ' + emp.apellidos;
+            document.getElementById('lab-subtitulo').innerText = 'DNI ' + emp.dni + ' · ' + (emp.cargo || '');
+            document.getElementById('lab-sueldo').value = emp.sueldoBase || 0;
+            document.getElementById('lab-descanso').value = emp.diaDescanso || 'DOMINGO';
+
+            var selSuc = document.getElementById('lab-sucursal');
+            selSuc.innerHTML = '';
+            sucursalesCache.forEach(function(s) {
+                selSuc.innerHTML += '<option value="' + s.id + '">' + s.nombre + ' (' + s.id + ')</option>';
+            });
+            selSuc.value = emp.sucursalId || 'SUC-001';
+
+            var m = document.getElementById('modal-laboral');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+
+        function cerrarModalLaboral() {
+            var m = document.getElementById('modal-laboral');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        }
+
+        function guardarDatosLaborales() {
+            var dni = document.getElementById('lab-dni').value;
+            var sueldo = parseFloat(document.getElementById('lab-sueldo').value) || 0;
+            var descanso = document.getElementById('lab-descanso').value;
+            var suc = document.getElementById('lab-sucursal').value;
+            showLoader("Actualizando colaborador...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || "Actualizado", !r.success);
+                if (r.success) { cerrarModalLaboral(); cargarPersonalRRHH(); }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al actualizar", true);
+            }).actualizarDatosLaborales(dni, sueldo, descanso, suc, rrhhPass);
+        }
+
+        function desvincularDesdeRRHH(dni) {
+            abrirConfirm("Desvincular celular", "El colaborador podrá vincular un nuevo equipo en su próximo ingreso.", function() {
+                showLoader("Desvinculando celular...");
+                google.script.run.withSuccessHandler(function(r) {
+                    hideLoader();
+                    showToast(r.message || "Desvinculado", !r.success);
+                    if (r.success) cargarPersonalRRHH();
+                }).withFailureHandler(function() {
+                    hideLoader();
+                    showToast("Error de red al desvincular", true);
+                }).desvincularDispositivo(dni, rrhhPass);
+            });
+        }
+
+        function revocarDesdeRRHH(dni) {
+            abrirConfirm("Revocar código QR", "El código QR de este colaborador quedará anulado de inmediato.", function() {
+                showLoader("Revocando QR...");
+                google.script.run.withSuccessHandler(function(r) {
+                    hideLoader();
+                    showToast(r.message || "QR revocado", !r.success);
+                    if (r.success) cargarPersonalRRHH();
+                }).withFailureHandler(function() {
+                    hideLoader();
+                    showToast("Error de red al revocar QR", true);
+                }).revocarQR(dni, "Revocado por RRHH", rrhhPass);
+            });
+        }
+
+        /* --- 5. SUCURSALES Y MAPA --- */
+        var mapSuc = null, markerSuc = null, circleSuc = null;
+
+        function cargarSucursalesSelects(cb) {
+            google.script.run.withSuccessHandler(function(lista) {
+                sucursalesCache = lista || [];
+                ['planilla-sucursal', 'personal-filtro-suc'].forEach(function(id) {
+                    var sel = document.getElementById(id);
+                    if (!sel) return;
+                    var valPrev = sel.value;
+                    sel.innerHTML = '<option value="ALL">Todas las sucursales</option>';
+                    sucursalesCache.forEach(function(s) {
+                        sel.innerHTML += '<option value="' + s.id + '">' + s.nombre + ' (' + s.id + ')</option>';
+                    });
+                    if (valPrev) sel.value = valPrev;
+                });
+                if (cb) cb();
+            }).obtenerSucursales();
+        }
+
+        function cargarSucursalesRRHH() {
+            cargarSucursalesSelects(function() {
+                var cont = document.getElementById('lista-sucursales-cards');
+                cont.innerHTML = '';
+                sucursalesCache.forEach(function(s) {
+                    var baseUrl = window.location.href.split('?')[0];
+                    var linkTienda = /rrhh\.html$/i.test(baseUrl)
+                        ? baseUrl.replace(/rrhh\.html$/i, 'index.html?sucursal=' + s.id)
+                        : (baseUrl.replace(/\/$/, '') + '/index.html?sucursal=' + s.id);
+                    var btnBorrar = s.id !== 'SUC-001'
+                        ? '<button onclick="borrarSucursal(\'' + s.id + '\')" class="px-2.5 py-1 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 text-[11px] font-medium">Eliminar</button>'
+                        : '';
+
+                    cont.innerHTML +=
+                        '<div class="surface rounded-2xl p-4 space-y-2.5">' +
+                            '<div class="flex justify-between items-start gap-2">' +
+                                '<div>' +
+                                    '<span class="text-[10px] font-mono text-zinc-400">' + s.id + '</span>' +
+                                    '<h3 class="font-semibold text-sm text-zinc-950 dark:text-white">' + s.nombre + '</h3>' +
+                                    '<p class="text-[11px] text-zinc-500 mt-0.5">Ingreso ' + s.horaIngreso + ' · Tol. ' + s.tolerancia + 'm · Radio ' + s.radio + 'm</p>' +
+                                '</div>' +
+                                '<div class="flex items-center gap-1 shrink-0">' +
+                                    '<button onclick="editarSucursal(\'' + s.id + '\')" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-200 text-[11px] font-medium">Editar</button>' +
+                                    btnBorrar +
+                                '</div>' +
+                            '</div>' +
+                            '<div class="pt-2 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between gap-2 text-[11px] text-zinc-400">' +
+                                '<span class="truncate">Enlace tienda: <span class="text-brand-blue font-mono">' + linkTienda + '</span></span>' +
+                                '<button onclick="copiarEnlaceTienda(\'' + linkTienda + '\')" class="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-500/15 text-brand-blue dark:text-blue-400 font-semibold shrink-0 hover:bg-blue-100">Copiar enlace</button>' +
+                            '</div>' +
+                        '</div>';
+                });
+                initMapSuc(-12.046374, -77.042793, 45);
+            });
+        }
+
+        function copiarEnlaceTienda(url) {
+            var temp = document.createElement('textarea');
+            temp.value = url;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            showToast("Enlace de sucursal copiado");
+        }
+
+        function initMapSuc(lat, lng, radio) {
+            if (typeof L === 'undefined') return;
+            setTimeout(function() {
+                if (!mapSuc) {
+                    mapSuc = L.map('map-sucursal').setView([lat, lng], 16);
+                    L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0','mt1','mt2','mt3'] }).addTo(mapSuc);
+                    markerSuc = L.marker([lat, lng], { draggable: true }).addTo(mapSuc);
+                    circleSuc = L.circle([lat, lng], { color: '#2563EB', fillColor: '#3b82f6', fillOpacity: 0.16, weight: 1.5, radius: radio || 45 }).addTo(mapSuc);
+                    markerSuc.on('dragend', function() {
+                        var p = markerSuc.getLatLng();
+                        document.getElementById('suc-lat').value = p.lat.toFixed(6);
+                        document.getElementById('suc-lng').value = p.lng.toFixed(6);
+                        circleSuc.setLatLng(p);
+                    });
+                    mapSuc.on('click', function(e) {
+                        markerSuc.setLatLng(e.latlng);
+                        circleSuc.setLatLng(e.latlng);
+                        document.getElementById('suc-lat').value = e.latlng.lat.toFixed(6);
+                        document.getElementById('suc-lng').value = e.latlng.lng.toFixed(6);
+                    });
+                } else {
+                    mapSuc.setView([lat, lng], 16);
+                    markerSuc.setLatLng([lat, lng]);
+                    circleSuc.setLatLng([lat, lng]);
+                    circleSuc.setRadius(radio || 45);
+                    mapSuc.invalidateSize();
+                }
+            }, 250);
+        }
+
+        function actualizarRadioMapaSuc() {
+            var r = parseInt(document.getElementById('suc-radio').value, 10) || 45;
+            if (circleSuc) circleSuc.setRadius(r);
+        }
+
+        function ubicarEnMapaSuc() {
+            if (!navigator.geolocation) return showToast("Sin GPS", true);
+            showLoader("Obteniendo ubicación...");
+            navigator.geolocation.getCurrentPosition(function(pos) {
+                hideLoader();
+                var lat = pos.coords.latitude, lng = pos.coords.longitude;
+                document.getElementById('suc-lat').value = lat.toFixed(6);
+                document.getElementById('suc-lng').value = lng.toFixed(6);
+                initMapSuc(lat, lng, parseInt(document.getElementById('suc-radio').value, 10) || 45);
+            }, function() { hideLoader(); showToast("GPS denegado", true); }, { enableHighAccuracy: true });
+        }
+
+        function editarSucursal(id) {
+            var s = sucursalesCache.find(function(x) { return x.id === id; });
+            if (!s) return;
+            document.getElementById('suc-form-title').innerText = 'Editando ' + s.nombre + ' (' + s.id + ')';
+            document.getElementById('suc-id').value = s.id;
+            document.getElementById('suc-nombre').value = s.nombre;
+            document.getElementById('suc-hora').value = s.horaIngreso;
+            document.getElementById('suc-tol').value = s.tolerancia;
+            document.getElementById('suc-radio').value = s.radio;
+            document.getElementById('suc-pass').value = '';
+            document.getElementById('suc-pass').placeholder = 'Dejar vacío para mantener clave actual';
+            document.getElementById('suc-lat').value = s.latitud.toFixed(6);
+            document.getElementById('suc-lng').value = s.longitud.toFixed(6);
+            initMapSuc(s.latitud, s.longitud, s.radio);
+        }
+
+        function limpiarFormSucursal() {
+            document.getElementById('suc-form-title').innerText = 'Nueva sucursal / tienda';
+            document.getElementById('suc-id').value = '';
+            document.getElementById('suc-nombre').value = '';
+            document.getElementById('suc-hora').value = '09:00';
+            document.getElementById('suc-tol').value = '10';
+            document.getElementById('suc-radio').value = '45';
+            document.getElementById('suc-pass').value = '';
+            document.getElementById('suc-pass').placeholder = 'Ej. tienda123';
+        }
+
+        function guardarSucursalForm() {
+            var data = {
+                id: document.getElementById('suc-id').value,
+                nombre: document.getElementById('suc-nombre').value.trim(),
+                horaIngreso: document.getElementById('suc-hora').value,
+                tolerancia: parseInt(document.getElementById('suc-tol').value, 10) || 0,
+                radio: parseInt(document.getElementById('suc-radio').value, 10) || 45,
+                passwordTienda: document.getElementById('suc-pass').value.trim(),
+                latitud: parseFloat(document.getElementById('suc-lat').value) || -12.046374,
+                longitud: parseFloat(document.getElementById('suc-lng').value) || -77.042793
+            };
+            if (!data.nombre) return showToast("Ingresa el nombre de la sucursal", true);
+            showLoader("Guardando sucursal...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.message || "Guardado", !r.success);
+                if (r.success) { limpiarFormSucursal(); cargarSucursalesRRHH(); }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al guardar sucursal", true);
+            }).guardarSucursal(data, rrhhPass);
+        }
+
+        function borrarSucursal(id) {
+            abrirConfirm("Eliminar sucursal", "Esta acción eliminará la sucursal " + id + " de la lista de tiendas activas.", function() {
+                showLoader("Eliminando sucursal...");
+                google.script.run.withSuccessHandler(function(r) {
+                    hideLoader();
+                    showToast(r.message || "Eliminada", !r.success);
+                    if (r.success) cargarSucursalesRRHH();
+                }).withFailureHandler(function() {
+                    hideLoader();
+                    showToast("Error de red al eliminar sucursal", true);
+                }).eliminarSucursal(id, rrhhPass);
+            });
+        }
+
+        /* --- 6. AUDITORÍA --- */
+        function cargarAuditoria() {
+            var tb = document.getElementById('tbody-auditoria');
+            tb.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-zinc-400">Cargando registros...</td></tr>';
+            google.script.run.withSuccessHandler(function(res) {
+                var lista = (res && res.success) ? (res.data || []) : [];
+                tb.innerHTML = '';
+                if (!lista.length) {
+                    tb.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-zinc-400">Sin eventos registrados.</td></tr>';
+                    return;
+                }
+                lista.forEach(function(a) {
+                    tb.innerHTML +=
+                        '<tr>' +
+                            '<td class="py-2.5 px-4 tabular text-zinc-500">' + a.fecha + '</td>' +
+                            '<td class="py-2.5 px-4 font-semibold">' + a.accion + '</td>' +
+                            '<td class="py-2.5 px-4 font-mono">' + a.dni + '</td>' +
+                            '<td class="py-2.5 px-4">' + a.anterior + ' → <b>' + a.nuevo + '</b></td>' +
+                            '<td class="py-2.5 px-4 text-zinc-500">' + a.motivo + '</td>' +
+                        '</tr>';
+                });
+            }).withFailureHandler(function() {
+                tb.innerHTML = '<tr><td colspan="5" class="py-10 text-center text-red-500">Error de red al cargar auditoría.</td></tr>';
+            }).obtenerAuditoria(rrhhPass);
+        }
+
+        /* --- 7. AJUSTES MAESTROS --- */
+        function cargarAjustesMaestros() {
+            google.script.run.withSuccessHandler(function(cfg) {
+                if (cfg) document.getElementById('cfg-empresa').value = cfg.nombreEmpresa || 'MAS Digital';
+            }).getConfig();
+        }
+
+        function guardarAjustesMaestros() {
+            var nuevaRRHH = document.getElementById('cfg-rrhh-pass').value.trim();
+            var data = {
+                nombreEmpresa: document.getElementById('cfg-empresa').value.trim(),
+                password: document.getElementById('cfg-admin-pass').value.trim(),
+                rrhhPassword: nuevaRRHH
+            };
+            showLoader("Guardando ajustes...");
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast(r.success ? "Configuración maestra guardada" : (r.message || "Error"), !r.success);
+                if (r.success) {
+                    if (nuevaRRHH) { rrhhPass = nuevaRRHH; sessionStorage.setItem('mas_rrhh_pass', nuevaRRHH); }
+                    document.getElementById('cfg-admin-pass').value = '';
+                    document.getElementById('cfg-rrhh-pass').value = '';
+                }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast("Error de red al guardar configuración", true);
+            }).saveConfig(rrhhPass, data);
+        }
+
+        window.onload = function() {
+            if (rrhhPass) {
+                document.getElementById('rrhh-login-screen').classList.add('hidden');
+                iniciarPortalRRHH();
+            }
+        };
+    </script>
+</body>
+</html>
