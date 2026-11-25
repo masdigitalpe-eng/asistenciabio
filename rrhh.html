@@ -17,7 +17,7 @@
 
     <script>
         // URL DEL BACKEND DE GOOGLE APPS SCRIPT
-        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbypUr7UXX-m9VDxLW-v5OVhgVpgmWiiWDdhMI95c5zzD5AAXVfREPOQa0e5jy8lqzMh/exec";
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbyZhYA8kG-ruaEblgJ3438-XgiDZPhh7OkrXZdQEvJG3xA-nzsCCJqgDUeEh8pVj9EE/exec";
 
         window.google = {
             script: {
@@ -64,7 +64,9 @@
                     calcularPlanillaMensual: function(mesOffset, sucursalId, rrhhPass) { this._callApi('calcularPlanillaMensual', { mesOffset: mesOffset, sucursalId: sucursalId, rrhhPass: rrhhPass }); },
                     obtenerDashboardDiarioRRHH: function(rrhhPass) { this._callApi('obtenerDashboardDiarioRRHH', { rrhhPass: rrhhPass }); },
                     agregarAjusteNomina: function(anioMes, dni, tipo, concepto, monto, rrhhPass) { this._callApi('agregarAjusteNomina', { anioMes: anioMes, dni: dni, tipo: tipo, concepto: concepto, monto: monto, rrhhPass: rrhhPass }); },
-                    eliminarAjusteNomina: function(idAjuste, rrhhPass) { this._callApi('eliminarAjusteNomina', { idAjuste: idAjuste, rrhhPass: rrhhPass }); }
+                    eliminarAjusteNomina: function(idAjuste, rrhhPass) { this._callApi('eliminarAjusteNomina', { idAjuste: idAjuste, rrhhPass: rrhhPass }); },
+                    obtenerTareoHoy: function(sucursalId) { this._callApi('obtenerTareoHoy', { sucursalId: sucursalId }); },
+                    aplicarPermisoRango: function(dni, estado, fechaInicio, cantidadDias, motivo, rrhhPass) { this._callApi('aplicarPermisoRango', { dni: dni, estado: estado, fechaInicio: fechaInicio, cantidadDias: cantidadDias, motivo: motivo, rrhhPass: rrhhPass }); }
                 }
             }
         };
@@ -369,6 +371,67 @@
         </div>
     </div>
 
+    <!-- MODAL ASIGNAR PERMISO / VACACIONES / LICENCIA POR DÍAS -->
+    <div id="modal-permiso-rango" class="fixed inset-0 z-[79] hidden items-center justify-center bg-zinc-950/55 dark:bg-black/75 backdrop-blur-xs px-4">
+        <div class="surface rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <div class="flex justify-between items-start pb-3 border-b border-zinc-100 dark:border-zinc-800">
+                <div>
+                    <h3 id="perm-titulo" class="text-base font-semibold text-zinc-950 dark:text-white">Asignar permiso o licencia</h3>
+                    <p id="perm-subtitulo" class="text-xs text-zinc-500 mt-0.5"></p>
+                </div>
+                <button onclick="cerrarModalPermiso()" class="w-8 h-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <input type="hidden" id="perm-dni">
+            <div class="py-4 space-y-3.5">
+                <div>
+                    <label class="label-clean">Tipo de permiso / licencia / estado</label>
+                    <select id="perm-estado" class="input-clean font-medium">
+                        <option value="V">V · Vacaciones</option>
+                        <option value="DM">DM · Descanso Médico</option>
+                        <option value="PC">PC · Permiso con Goce</option>
+                        <option value="PS">PS · Permiso sin Goce</option>
+                        <option value="LF">LF · Licencia por Fallecimiento</option>
+                        <option value="LP">LP · Licencia por Paternidad / Maternidad</option>
+                        <option value="DL">DL · Día Libre</option>
+                        <option value="S">S · Suspensión</option>
+                        <option value="F">F · Falta</option>
+                        <option value="R">R · Retiro</option>
+                        <option value="AB">AB · Abandono</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="label-clean">Fecha de inicio</label>
+                        <input type="date" id="perm-fecha" onchange="actualizarPreviewRangoPermiso()" class="input-clean text-xs">
+                    </div>
+                    <div>
+                        <label class="label-clean">Cantidad de días</label>
+                        <input type="number" id="perm-dias" min="1" max="60" value="1" oninput="actualizarPreviewRangoPermiso()" class="input-clean tabular font-semibold text-center">
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 flex-wrap">
+                    <span class="text-[11px] text-zinc-400 mr-1">Rápido:</span>
+                    <button type="button" onclick="setDiasPermiso(1)" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[11px] font-medium">1 día</button>
+                    <button type="button" onclick="setDiasPermiso(3)" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[11px] font-medium">3 días</button>
+                    <button type="button" onclick="setDiasPermiso(7)" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[11px] font-medium">7 días</button>
+                    <button type="button" onclick="setDiasPermiso(15)" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[11px] font-medium">15 días</button>
+                    <button type="button" onclick="setDiasPermiso(30)" class="px-2.5 py-1 rounded-lg bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-[11px] font-medium">30 días</button>
+                </div>
+                <div id="perm-preview" class="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-500/10 border border-blue-200/70 dark:border-blue-500/20 text-xs text-blue-700 dark:text-blue-300"></div>
+                <div>
+                    <label class="label-clean">Motivo / Sustento (auditoría)</label>
+                    <input type="text" id="perm-motivo" class="input-clean text-xs" placeholder="Ej. Vacaciones programadas, CITT médico, permiso familiar...">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2.5 pt-2">
+                <button onclick="cerrarModalPermiso()" class="h-10 rounded-xl border border-zinc-200 dark:border-zinc-800 text-xs font-medium text-zinc-700 dark:text-zinc-300">Cancelar</button>
+                <button onclick="guardarPermisoRango()" class="h-10 rounded-xl bg-brand-blue hover:bg-blue-700 text-white text-xs font-semibold">Aplicar al tareo</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL BOLETA DE PAGO IMPRIMIBLE -->
     <div id="modal-boleta" class="fixed inset-0 z-[82] hidden items-center justify-center bg-zinc-950/65 dark:bg-black/80 backdrop-blur-xs px-4 py-6 overflow-y-auto">
         <div id="boleta-card" class="bg-white text-zinc-950 rounded-2xl max-w-2xl w-full shadow-2xl border border-zinc-200 overflow-hidden my-auto">
@@ -420,6 +483,7 @@
             <div class="flex items-center gap-2.5 w-full xl:w-auto overflow-x-auto hide-scrollbar">
                 <nav class="inline-flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/70 dark:border-zinc-800/80 w-max min-w-full xl:min-w-0 xl:w-auto">
                     <button onclick="switchTabRRHH('inicio')" id="tab-inicio" class="nav-tab active shrink-0">Panel Diario</button>
+                    <button onclick="switchTabRRHH('tareo')" id="tab-tareo" class="nav-tab shrink-0">Tareo y Permisos</button>
                     <button onclick="switchTabRRHH('aprobaciones')" id="tab-aprobaciones" class="nav-tab shrink-0">
                         Aprobaciones QR
                         <span id="badge-pendientes" class="hidden px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white tabular">0</span>
@@ -492,6 +556,49 @@
             </div>
             <div id="dash-sucursales-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div class="col-span-full surface rounded-2xl p-12 text-center text-xs text-zinc-400">Cargando estado de tiendas...</div>
+            </div>
+        </section>
+
+        <!-- 0.5 TAREO Y GESTIÓN DE PERMISOS / VACACIONES -->
+        <section id="view-tareo" class="hidden fade-in">
+            <div class="mb-6 flex flex-col lg:flex-row justify-between items-start lg:items-end gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Tareo y gestión de permisos</h1>
+                    <p class="text-[13px] text-zinc-500 mt-1">Filtra por colaborador o unidad para asignar vacaciones, descansos médicos, licencias o permisos por varios días.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
+                    <select id="tareo-rrhh-sucursal" onchange="cargarTareoRRHH()" class="input-clean !w-auto h-10 text-xs font-medium">
+                        <option value="ALL">Todas las unidades / sucursales</option>
+                    </select>
+                    <select id="tareo-rrhh-estado" onchange="filtrarTareoRRHH()" class="input-clean !w-auto h-10 text-xs font-medium">
+                        <option value="ALL">Todos los estados</option>
+                        <option value="-">Sin marcar (-)</option>
+                        <option value="A">Asistió (A)</option>
+                        <option value="T">Tarde (T)</option>
+                        <option value="F">Falta (F)</option>
+                        <option value="EXC">Vacaciones / Permisos / Lic.</option>
+                    </select>
+                    <input type="text" id="tareo-rrhh-search" onkeyup="filtrarTareoRRHH()" class="input-clean !w-56 h-10 text-xs" placeholder="Buscar nombre, DNI o cargo...">
+                    <button onclick="cargarTareoRRHH()" class="h-10 px-4 surface hover:bg-zinc-50 dark:hover:bg-zinc-900 rounded-xl text-xs font-semibold text-zinc-700 dark:text-zinc-200">Sincronizar</button>
+                </div>
+            </div>
+
+            <div class="surface rounded-2xl overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs whitespace-nowrap">
+                        <thead class="bg-zinc-50/80 dark:bg-zinc-900/60 text-[11px] font-semibold text-zinc-500 uppercase tracking-wider border-b border-zinc-200/70 dark:border-zinc-800/80">
+                            <tr>
+                                <th class="py-3.5 px-4">Colaborador</th>
+                                <th class="py-3.5 px-4">Unidad / Sucursal</th>
+                                <th class="py-3.5 px-4 text-center">Estado de hoy</th>
+                                <th class="py-3.5 px-4 text-right">Permisos / Vacaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-tareo-rrhh" class="divide-y divide-zinc-100 dark:divide-zinc-800/70">
+                            <tr><td colspan="4" class="py-16 text-center text-zinc-400">Cargando tareo...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -823,6 +930,7 @@
         var rrhhPass = sessionStorage.getItem('mas_rrhh_pass') || '';
         var sucursalesCache = [];
         var personalCache = [];
+        var tareoRRHHCache = [];
         var solicitudesQRCache = [];
         var planillaCache = [];
         var planillaMeta = { nombreEmpresa: 'MAS Digital', mesNombre: '', anioMes: '' };
@@ -899,7 +1007,7 @@
         }
 
         function switchTabRRHH(tab) {
-            var tabs = ['inicio', 'aprobaciones', 'planilla', 'politicas', 'personal', 'sucursales', 'auditoria', 'maestro'];
+            var tabs = ['inicio', 'tareo', 'aprobaciones', 'planilla', 'politicas', 'personal', 'sucursales', 'auditoria', 'maestro'];
             tabs.forEach(function(t) {
                 document.getElementById('view-' + t).classList.add('hidden');
                 document.getElementById('tab-' + t).classList.remove('active');
@@ -908,6 +1016,7 @@
             document.getElementById('tab-' + tab).classList.add('active');
 
             if (tab === 'inicio') cargarDashboardDiario();
+            if (tab === 'tareo') cargarTareoRRHH();
             if (tab === 'aprobaciones') cargarSolicitudesQR();
             if (tab === 'planilla') cargarPlanillaMensual();
             if (tab === 'politicas') { cargarPoliticas(); cargarFeriados(); }
@@ -1033,6 +1142,154 @@
         function cerrarDetalleSucursal() {
             var m = document.getElementById('modal-detalle-sucursal');
             m.classList.add('hidden'); m.classList.remove('flex');
+        }
+
+        /* --- 0.5 TAREO Y GESTIÓN DE PERMISOS / VACACIONES --- */
+        var ETIQUETAS_ESTADO = {
+            '-': { label: 'Sin marcar', cls: 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300' },
+            'A': { label: 'Asistió', cls: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400' },
+            'T': { label: 'Tarde', cls: 'bg-amber-50 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400' },
+            'F': { label: 'Falta', cls: 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-400' },
+            'DL': { label: 'Día libre', cls: 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-400' },
+            'V': { label: 'Vacaciones', cls: 'bg-violet-50 text-violet-700 dark:bg-violet-500/15 dark:text-violet-400' },
+            'DM': { label: 'Desc. médico', cls: 'bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-400' },
+            'LF': { label: 'Lic. fallecim.', cls: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200' },
+            'LP': { label: 'Lic. paternidad', cls: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-400' },
+            'S': { label: 'Suspensión', cls: 'bg-orange-50 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400' },
+            'PS': { label: 'Permiso S/G', cls: 'bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-400' },
+            'PC': { label: 'Permiso C/G', cls: 'bg-emerald-50 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300' },
+            'AB': { label: 'Abandono', cls: 'bg-zinc-200 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300' },
+            'R': { label: 'Retiro', cls: 'bg-zinc-900 text-white dark:bg-zinc-700 dark:text-zinc-100' }
+        };
+
+        function cargarTareoRRHH() {
+            var suc = document.getElementById('tareo-rrhh-sucursal').value;
+            var tb = document.getElementById('tbody-tareo-rrhh');
+            tb.innerHTML = '<tr><td colspan="4" class="py-12 text-center text-zinc-400">Cargando tareo del día...</td></tr>';
+            google.script.run.withSuccessHandler(function(lista) {
+                tareoRRHHCache = lista || [];
+                filtrarTareoRRHH();
+            }).withFailureHandler(function() {
+                tb.innerHTML = '<tr><td colspan="4" class="py-12 text-center text-red-500">Error de conexión al cargar el tareo.</td></tr>';
+            }).obtenerTareoHoy(suc);
+        }
+
+        function filtrarTareoRRHH() {
+            var q = (document.getElementById('tareo-rrhh-search').value || '').toLowerCase().trim();
+            var estFiltro = document.getElementById('tareo-rrhh-estado').value;
+            var tb = document.getElementById('tbody-tareo-rrhh');
+
+            var lista = tareoRRHHCache.filter(function(e) {
+                var coincideTexto = !q
+                    || String(e.nombres || '').toLowerCase().includes(q)
+                    || String(e.dni || '').includes(q)
+                    || String(e.cargo || '').toLowerCase().includes(q)
+                    || String(e.sucursalNombre || '').toLowerCase().includes(q);
+                if (!coincideTexto) return false;
+                if (estFiltro === 'ALL') return true;
+                if (estFiltro === 'EXC') return ['DL', 'V', 'DM', 'LF', 'LP', 'S', 'PS', 'PC'].indexOf(e.estado) !== -1;
+                return e.estado === estFiltro;
+            });
+
+            tb.innerHTML = '';
+            if (lista.length === 0) {
+                tb.innerHTML = '<tr><td colspan="4" class="py-12 text-center text-zinc-400">No hay colaboradores que coincidan con el filtro.</td></tr>';
+                return;
+            }
+
+            lista.forEach(function(e) {
+                var meta = ETIQUETAS_ESTADO[e.estado] || ETIQUETAS_ESTADO['-'];
+                var detalleHora = '';
+                if (e.estado === 'T' && e.minutosTarde > 0) {
+                    detalleHora = '<span class="block text-[10px] text-zinc-400 tabular mt-0.5">' + (e.horaExacta || '') + ' <b class="text-red-500">+' + e.minutosTarde + 'm</b></span>';
+                } else if (e.estado === 'A' && e.horaExacta) {
+                    detalleHora = '<span class="block text-[10px] text-zinc-400 tabular mt-0.5">' + e.horaExacta + '</span>';
+                }
+
+                tb.innerHTML +=
+                    '<tr class="hover:bg-zinc-50/70 dark:hover:bg-zinc-900/40">' +
+                        '<td class="py-3 px-4"><div class="font-semibold text-zinc-950 dark:text-zinc-100">' + e.nombres + '</div><div class="text-[11px] text-zinc-400">DNI ' + e.dni + ' · ' + (e.cargo || '') + '</div></td>' +
+                        '<td class="py-3 px-4 text-zinc-600 dark:text-zinc-300">' + (e.sucursalNombre || e.sucursalId || 'Sede Principal') + '</td>' +
+                        '<td class="py-3 px-4 text-center"><span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ' + meta.cls + '">' + e.estado + ' · ' + meta.label + '</span>' + detalleHora + '</td>' +
+                        '<td class="py-3 px-4 text-right">' +
+                            '<button onclick="abrirModalPermiso(\'' + e.dni + '\')" class="px-3 py-1.5 rounded-lg bg-brand-blue hover:bg-blue-700 text-white text-[11px] font-semibold transition-colors">Asignar permiso / días</button>' +
+                        '</td>' +
+                    '</tr>';
+            });
+        }
+
+        function abrirModalPermiso(dni) {
+            var emp = tareoRRHHCache.find(function(x) { return String(x.dni) === String(dni); });
+            if (!emp) return;
+            document.getElementById('perm-dni').value = emp.dni;
+            document.getElementById('perm-titulo').innerText = emp.nombres;
+            document.getElementById('perm-subtitulo').innerText = 'DNI ' + emp.dni + ' · ' + (emp.sucursalNombre || 'Sede Principal');
+            document.getElementById('perm-estado').value = 'V';
+            document.getElementById('perm-dias').value = 1;
+            document.getElementById('perm-motivo').value = '';
+
+            var hoy = new Date();
+            var yyyy = hoy.getFullYear();
+            var mm = ('0' + (hoy.getMonth() + 1)).slice(-2);
+            var dd = ('0' + hoy.getDate()).slice(-2);
+            document.getElementById('perm-fecha').value = yyyy + '-' + mm + '-' + dd;
+            actualizarPreviewRangoPermiso();
+
+            var m = document.getElementById('modal-permiso-rango');
+            m.classList.remove('hidden'); m.classList.add('flex');
+        }
+
+        function cerrarModalPermiso() {
+            var m = document.getElementById('modal-permiso-rango');
+            m.classList.add('hidden'); m.classList.remove('flex');
+        }
+
+        function setDiasPermiso(n) {
+            document.getElementById('perm-dias').value = n;
+            actualizarPreviewRangoPermiso();
+        }
+
+        function actualizarPreviewRangoPermiso() {
+            var fechaStr = document.getElementById('perm-fecha').value;
+            var dias = parseInt(document.getElementById('perm-dias').value, 10) || 1;
+            if (dias < 1) dias = 1;
+            if (dias > 60) dias = 60;
+            var prev = document.getElementById('perm-preview');
+            if (!fechaStr) { prev.innerText = 'Selecciona una fecha de inicio.'; return; }
+
+            var partes = fechaStr.split('-');
+            var inicio = new Date(parseInt(partes[0], 10), parseInt(partes[1], 10) - 1, parseInt(partes[2], 10));
+            var fin = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + (dias - 1));
+            var fmt = function(d) { return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear(); };
+
+            prev.innerHTML = dias === 1
+                ? 'Se marcará únicamente el día <b>' + fmt(inicio) + '</b>.'
+                : 'Se marcarán <b>' + dias + ' días consecutivos</b>: del <b>' + fmt(inicio) + '</b> al <b>' + fmt(fin) + '</b> (incluye cambio de mes automáticamente).';
+        }
+
+        function guardarPermisoRango() {
+            var dni = document.getElementById('perm-dni').value;
+            var estado = document.getElementById('perm-estado').value;
+            var fechaInicio = document.getElementById('perm-fecha').value;
+            var dias = parseInt(document.getElementById('perm-dias').value, 10) || 1;
+            var motivo = document.getElementById('perm-motivo').value.trim();
+
+            if (!fechaInicio) return showToast('Selecciona la fecha de inicio', true);
+            if (dias < 1 || dias > 60) return showToast('Ingresa entre 1 y 60 días', true);
+            if (motivo.length < 3) return showToast('Ingresa el motivo o sustento', true);
+
+            showLoader('Aplicando ' + dias + ' día(s) al tareo...');
+            google.script.run.withSuccessHandler(function(r) {
+                hideLoader();
+                showToast((r && r.message) ? r.message : 'Aplicado', !(r && r.success));
+                if (r && r.success) {
+                    cerrarModalPermiso();
+                    cargarTareoRRHH();
+                }
+            }).withFailureHandler(function() {
+                hideLoader();
+                showToast('Error de red al guardar permiso', true);
+            }).aplicarPermisoRango(dni, estado, fechaInicio, dias, motivo, rrhhPass);
         }
 
         /* --- 1. APROBACIONES QR --- */
@@ -1583,7 +1840,7 @@
         function cargarSucursalesSelects(cb) {
             google.script.run.withSuccessHandler(function(lista) {
                 sucursalesCache = lista || [];
-                ['planilla-sucursal', 'personal-filtro-suc'].forEach(function(id) {
+                ['planilla-sucursal', 'personal-filtro-suc', 'tareo-rrhh-sucursal'].forEach(function(id) {
                     var sel = document.getElementById(id);
                     if (!sel) return;
                     var valPrev = sel.value;
