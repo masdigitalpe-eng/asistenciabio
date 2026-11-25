@@ -31,7 +31,7 @@
 
     <script>
         // 🛑🛑 ¡ATENCIÓN! PEGA AQUÍ LA MISMA URL QUE EN EL INDEX 🛑🛑
-        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbypUr7UXX-m9VDxLW-v5OVhgVpgmWiiWDdhMI95c5zzD5AAXVfREPOQa0e5jy8lqzMh/exec";
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbyZhYA8kG-ruaEblgJ3438-XgiDZPhh7OkrXZdQEvJG3xA-nzsCCJqgDUeEh8pVj9EE/exec";
 
         window.google = {
             script: {
@@ -639,15 +639,15 @@
                 if (activeTab) activeTab.classList.add('active');
 
                 if (viewId === 'historial' && !isHistorialCargado) {
-                    cargarHistorial(false);
+                    cargarHistorial();
                 }
-            } catch (e) {}
+            } catch (e) { }
         };
 
         // Detector de navegadores internos (WhatsApp, Facebook, Instagram, TikTok, Line)
         function detectarNavegadorInterno() {
             var ua = navigator.userAgent || navigator.vendor || window.opera || "";
-            var esWebView = /WhatsApp|FBAN|FBAV|Instagram|Line|MicroMessenger|BytedanceWebview|TikTok/i.test(ua);
+            var esWebView = /WhatsApp|FBAN|FBAV|Instagram|Line|MicroMessenger|TikTok|BytedanceWebview/i.test(ua);
             if (esWebView) {
                 var blocker = document.getElementById('webview-blocker');
                 if (blocker) {
@@ -659,15 +659,35 @@
             return false;
         }
 
-        // Detector seguro de Modo Incógnito / Safari Privado (evita falsos positivos en iframes de vista previa)
+        // Detector reforzado de Modo Incógnito (Chrome Android/Desktop + Safari Privado)
         async function detectarModoIncognito() {
             try {
                 if (window.self !== window.top) return false;
+                var ua = navigator.userAgent || "";
+                var esChromium = /Chrome|Chromium|Edg|OPR|CriOS|Brave/i.test(ua);
+
                 if (navigator.storage && navigator.storage.estimate) {
                     var est = await navigator.storage.estimate();
-                    if (est && est.quota && est.quota < 120 * 1024 * 1024) return true;
+                    var quota = (est && est.quota) ? est.quota : 0;
+
+                    // Límite clásico (< 120 MB)
+                    if (quota > 0 && quota < 120 * 1024 * 1024) return true;
+
+                    // Heurística moderna para Google Chrome (Android y Desktop):
+                    // En incógnito Chrome limita la cuota en función de la RAM (<= jsHeapSizeLimit * 2),
+                    // mientras que en modo normal asigna ~60% del disco total (decenas de GB).
+                    if (esChromium && quota > 0) {
+                        var heapLimit = (window.performance && window.performance.memory && window.performance.memory.jsHeapSizeLimit)
+                            ? window.performance.memory.jsHeapSizeLimit
+                            : 0;
+                        if (heapLimit > 0 && quota <= (heapLimit * 2)) return true;
+                        // Respaldo para dispositivos donde performance.memory no está expuesto
+                        if (heapLimit === 0 && quota < 600 * 1024 * 1024) return true;
+                    }
                 }
-                if (/Safari/i.test(navigator.userAgent) && !/Chrome|CriOS|FxiOS/i.test(navigator.userAgent)) {
+
+                // Safari Privado (iPhone / macOS)
+                if (/Safari/i.test(ua) && !/Chrome|CriOS|FxiOS/i.test(ua)) {
                     if (navigator.storage && navigator.storage.getDirectory) {
                         try {
                             await navigator.storage.getDirectory();
