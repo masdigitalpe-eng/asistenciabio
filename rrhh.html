@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Portal Recursos Humanos | MAS Digital</title>
 
-    <link rel="preconnect" href="https://fontas.googleapis.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@700;800;900&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -418,18 +418,18 @@
             </div>
 
             <div class="flex items-center gap-2.5 w-full xl:w-auto overflow-x-auto hide-scrollbar">
-                <nav class="flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/70 dark:border-zinc-800/80">
-                    <button onclick="switchTabRRHH('inicio')" id="tab-inicio" class="nav-tab active">Panel Diario</button>
-                    <button onclick="switchTabRRHH('aprobaciones')" id="tab-aprobaciones" class="nav-tab">
+                <nav class="inline-flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/70 dark:border-zinc-800/80 w-max min-w-full xl:min-w-0 xl:w-auto">
+                    <button onclick="switchTabRRHH('inicio')" id="tab-inicio" class="nav-tab active shrink-0">Panel Diario</button>
+                    <button onclick="switchTabRRHH('aprobaciones')" id="tab-aprobaciones" class="nav-tab shrink-0">
                         Aprobaciones QR
                         <span id="badge-pendientes" class="hidden px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-amber-500 text-white tabular">0</span>
                     </button>
-                    <button onclick="switchTabRRHH('planilla')" id="tab-planilla" class="nav-tab">Planilla y Boletas</button>
-                    <button onclick="switchTabRRHH('politicas')" id="tab-politicas" class="nav-tab">Políticas y Feriados</button>
-                    <button onclick="switchTabRRHH('personal')" id="tab-personal" class="nav-tab">Personal</button>
-                    <button onclick="switchTabRRHH('sucursales')" id="tab-sucursales" class="nav-tab">Sucursales</button>
-                    <button onclick="switchTabRRHH('auditoria')" id="tab-auditoria" class="nav-tab">Auditoría</button>
-                    <button onclick="switchTabRRHH('maestro')" id="tab-maestro" class="nav-tab">Ajustes</button>
+                    <button onclick="switchTabRRHH('planilla')" id="tab-planilla" class="nav-tab shrink-0">Planilla y Boletas</button>
+                    <button onclick="switchTabRRHH('politicas')" id="tab-politicas" class="nav-tab shrink-0">Políticas y Feriados</button>
+                    <button onclick="switchTabRRHH('personal')" id="tab-personal" class="nav-tab shrink-0">Personal</button>
+                    <button onclick="switchTabRRHH('sucursales')" id="tab-sucursales" class="nav-tab shrink-0">Sucursales</button>
+                    <button onclick="switchTabRRHH('auditoria')" id="tab-auditoria" class="nav-tab shrink-0">Auditoría</button>
+                    <button onclick="switchTabRRHH('maestro')" id="tab-maestro" class="nav-tab shrink-0">Ajustes</button>
                 </nav>
 
                 <div class="hidden xl:flex items-center gap-2">
@@ -823,6 +823,7 @@
         var rrhhPass = sessionStorage.getItem('mas_rrhh_pass') || '';
         var sucursalesCache = [];
         var personalCache = [];
+        var solicitudesQRCache = [];
         var planillaCache = [];
         var planillaMeta = { nombreEmpresa: 'MAS Digital', mesNombre: '', anioMes: '' };
         var dashboardCache = null;
@@ -1040,6 +1041,7 @@
             cont.innerHTML = '<div class="col-span-full surface rounded-2xl p-10 text-center text-xs text-zinc-400">Consultando solicitudes...</div>';
             google.script.run.withSuccessHandler(function(res) {
                 var lista = (res && res.success) ? (res.data || []) : [];
+                solicitudesQRCache = lista;
                 var badge = document.getElementById('badge-pendientes');
                 if (lista.length > 0) {
                     badge.innerText = lista.length;
@@ -1071,7 +1073,7 @@
                             '</div>' +
                             '<div class="grid grid-cols-2 gap-2.5">' +
                                 '<button onclick="rechazarSolicitudQR(\'' + emp.dni + '\')" class="h-9 rounded-xl border border-red-200 dark:border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 text-xs font-semibold">Rechazar</button>' +
-                                '<button onclick="aprobarSolicitudQR(\'' + emp.dni + '\', \'' + String(emp.motivoQR || 'Aprobado por RRHH').replace(/'/g, '') + '\')" class="h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Aprobar y enviar QR</button>' +
+                                '<button onclick="aprobarSolicitudQR(\'' + emp.dni + '\')" class="h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold">Aprobar y enviar QR</button>' +
                             '</div>' +
                         '</div>';
                 });
@@ -1080,7 +1082,9 @@
             }).obtenerSolicitudesQR(rrhhPass);
         }
 
-        function aprobarSolicitudQR(dni, motivo) {
+        function aprobarSolicitudQR(dni) {
+            var emp = solicitudesQRCache.find(function(x) { return String(x.dni) === String(dni); });
+            var motivo = (emp && emp.motivoQR) ? String(emp.motivoQR) : "Aprobado por RRHH";
             showLoader("Aprobando y enviando QR...");
             google.script.run.withSuccessHandler(function(r) {
                 hideLoader();
@@ -1092,7 +1096,7 @@
             }).withFailureHandler(function() {
                 hideLoader();
                 showToast("Error de conexión al aprobar QR", true);
-            }).autorizarQR(dni, motivo || "Aprobado por RRHH", rrhhPass);
+            }).autorizarQR(dni, motivo, rrhhPass);
         }
 
         function rechazarSolicitudQR(dni) {
@@ -1590,6 +1594,8 @@
                     if (valPrev) sel.value = valPrev;
                 });
                 if (cb) cb();
+            }).withFailureHandler(function() {
+                if (cb) cb();
             }).obtenerSucursales();
         }
 
@@ -1689,6 +1695,10 @@
         function editarSucursal(id) {
             var s = sucursalesCache.find(function(x) { return x.id === id; });
             if (!s) return;
+            var latNum = parseFloat(s.latitud);
+            var lngNum = parseFloat(s.longitud);
+            if (isNaN(latNum)) latNum = -12.046374;
+            if (isNaN(lngNum)) lngNum = -77.042793;
             document.getElementById('suc-form-title').innerText = 'Editando ' + s.nombre + ' (' + s.id + ')';
             document.getElementById('suc-id').value = s.id;
             document.getElementById('suc-nombre').value = s.nombre;
@@ -1697,9 +1707,9 @@
             document.getElementById('suc-radio').value = s.radio;
             document.getElementById('suc-pass').value = '';
             document.getElementById('suc-pass').placeholder = 'Dejar vacío para mantener clave actual';
-            document.getElementById('suc-lat').value = s.latitud.toFixed(6);
-            document.getElementById('suc-lng').value = s.longitud.toFixed(6);
-            initMapSuc(s.latitud, s.longitud, s.radio);
+            document.getElementById('suc-lat').value = latNum.toFixed(6);
+            document.getElementById('suc-lng').value = lngNum.toFixed(6);
+            initMapSuc(latNum, lngNum, s.radio);
         }
 
         function limpiarFormSucursal() {
