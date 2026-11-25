@@ -20,7 +20,8 @@
 
     <script>
         // URL DEL BACKEND DE GOOGLE APPS SCRIPT
-        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbypUr7UXX-m9VDxLW-v5OVhgVpgmWiiWDdhMI95c5zzD5AAXVfREPOQa0e5jy8lqzMh/exec";
+        var URL_BACKEND_GOOGLE = "https://script.google.com/macros/s/AKfycbyZhYA8kG-ruaEblgJ3438-XgiDZPhh7OkrXZdQEvJG3xA-nzsCCJqgDUeEh8pVj9EE/exec
+";
 
         window.google = {
             script: {
@@ -53,10 +54,11 @@
                     saveConfig: function(oldPass, data) { this._callApi('saveConfig', { oldPass: oldPass, data: data }); },
                     verificarLicencia: function() { this._callApi('verificarLicencia'); },
                     obtenerEmpleados: function(sucursalId) { this._callApi('obtenerEmpleados', { sucursalId: sucursalId }); },
-                    desvincularDispositivo: function(dni, adminPass, sucursalId) { this._callApi('desvincularDispositivo', { dni: dni, adminPass: adminPass, sucursalId: sucursalId }); },
+                    desvincularDispositivo: function(dni, motivo, adminPass, sucursalId) { this._callApi('desvincularDispositivo', { dni: dni, motivo: motivo, adminPass: adminPass, sucursalId: sucursalId }); },
                     marcarAsistenciaQR: function(qrCode, adminPass, sucursalId) { this._callApi('marcarAsistenciaQR', { qrCode: qrCode, adminPass: adminPass, sucursalId: sucursalId }); },
                     solicitarQR: function(dni, motivo, adminPass, sucursalId) { this._callApi('solicitarQR', { dni: dni, motivo: motivo, adminPass: adminPass, sucursalId: sucursalId }); },
-                    reenviarQR: function(dni, adminPass, sucursalId) { this._callApi('reenviarQR', { dni: dni, adminPass: adminPass, sucursalId: sucursalId }); }
+                    reenviarQR: function(dni, adminPass, sucursalId) { this._callApi('reenviarQR', { dni: dni, adminPass: adminPass, sucursalId: sucursalId }); },
+                    actualizarDiaDescanso: function(dni, diaDescanso, motivo, adminPass, sucursalId) { this._callApi('actualizarDiaDescanso', { dni: dni, diaDescanso: diaDescanso, motivo: motivo, adminPass: adminPass, sucursalId: sucursalId }); }
                 }
             }
         };
@@ -393,14 +395,38 @@
         </div>
     </div>
 
+    <!-- MODAL ESCÁNER QR (MODO RESPALDO / KIOSCO) -->
+    <div id="modal-escaner-qr" class="fixed inset-0 z-[75] hidden items-center justify-center bg-zinc-950/65 dark:bg-black/85 backdrop-blur-xs transition-opacity duration-200 opacity-0 px-4">
+        <div class="surface rounded-2xl w-full max-w-md flex flex-col shadow-2xl transform scale-95 transition-transform duration-200 overflow-hidden" id="escaner-content">
+            <div class="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800/80 flex justify-between items-center">
+                <div>
+                    <h3 class="font-semibold text-base text-zinc-950 dark:text-white">Escáner QR de respaldo</h3>
+                    <p class="text-[11px] text-zinc-500 dark:text-zinc-400">Para colaboradores sin celular o sin biometría.</p>
+                </div>
+                <button onclick="cerrarEscanerQR()" aria-label="Cerrar escáner" class="w-8 h-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-800 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 flex items-center justify-center transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-5 flex flex-col gap-4">
+                <div id="qr-reader" class="w-full rounded-xl overflow-hidden bg-zinc-950 min-h-[260px] border border-zinc-200 dark:border-zinc-800"></div>
+                <div id="qr-scan-status" class="text-center text-xs text-zinc-500 dark:text-zinc-400 px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800">
+                    Apunta la cámara al código QR personal del colaborador.
+                </div>
+            </div>
+            <div class="px-5 py-3.5 border-t border-zinc-100 dark:border-zinc-800/80 flex justify-end">
+                <button onclick="cerrarEscanerQR()" class="px-5 h-9 rounded-xl bg-zinc-950 dark:bg-zinc-50 hover:bg-zinc-800 dark:hover:bg-zinc-200 text-white dark:text-zinc-950 font-semibold text-xs transition-colors">Finalizar escaneo</button>
+            </div>
+        </div>
+    </div>
+
     <!-- HEADER CORPORATIVO LIMPIO -->
     <header class="bg-white/85 dark:bg-zinc-950/85 backdrop-blur-md border-b border-zinc-200/70 dark:border-zinc-800/80 sticky top-0 z-40">
         <div class="max-w-6xl mx-auto px-4 md:px-6 py-2.5 flex flex-col lg:flex-row justify-between items-center gap-3">
             
             <!-- Marca + controles móviles -->
-            <div class="flex items-center justify-between w-full lg:w-auto gap-3">
-                <div class="flex items-center gap-2.5 select-none min-w-0">
-                    <svg viewBox="0 0 280 150" class="h-7 w-auto shrink-0" xmlns="http://www.w3.org/2000/svg">
+            <div class="flex items-center justify-between w-full lg:w-auto">
+                <div class="flex items-center gap-2.5 select-none">
+                    <svg viewBox="0 0 280 150" class="h-7 w-auto" xmlns="http://www.w3.org/2000/svg">
                         <defs>
                             <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#2563EB"/><stop offset="100%" stop-color="#8B5CF6"/></linearGradient>
                             <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#EC4899"/></linearGradient>
@@ -412,54 +438,50 @@
                             <path d="M 229 13.2 L 229 53.2 M 209 33.2 L 249 33.2" stroke="url(#g3)" stroke-width="24" />
                         </g>
                     </svg>
-                    <div class="flex items-center gap-2 min-w-0">
-                        <div class="flex items-baseline leading-none shrink-0">
-                            <span class="font-display font-black text-[17px] sm:text-[18px] text-zinc-950 dark:text-white tracking-tight">MAS</span>
-                            <span class="font-display font-bold text-[17px] sm:text-[18px] text-zinc-950 dark:text-white tracking-tight ml-0.5">Digital</span>
+                    <div class="flex items-center gap-2.5">
+                        <div class="flex items-baseline leading-none">
+                            <span class="font-display font-black text-[18px] text-zinc-950 dark:text-white tracking-tight">MAS</span>
+                            <span class="font-display font-bold text-[18px] text-zinc-950 dark:text-white tracking-tight ml-0.5">Digital</span>
                             <span class="w-1.5 h-1.5 bg-brand-orange rounded-full ml-1 relative -top-[1px]"></span>
                         </div>
-                        <span id="badge-sucursal-activa" class="text-[11px] font-semibold text-zinc-700 dark:text-zinc-200 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 max-w-[125px] sm:max-w-[175px] truncate">
+                        <span id="badge-sucursal-activa" class="text-[11px] font-semibold text-zinc-700 dark:text-zinc-200 px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 max-w-[175px] truncate">
                             Sucursal
                         </span>
                     </div>
                 </div>
 
-                <!-- Acciones rápidas móvil con mejor separación -->
-                <div class="flex items-center gap-2.5 lg:hidden shrink-0">
-                    <button onclick="toggleTheme()" aria-label="Cambiar tema" class="w-9 h-9 rounded-xl surface hover:bg-zinc-50 dark:hover:bg-zinc-900 flex items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors">
+                <!-- Acciones rápidas móvil -->
+                <div class="flex items-center gap-1.5 lg:hidden">
+                    <button id="btn-logout-mobile" onclick="cerrarSesionAdmin()" class="hidden items-center gap-1.5 px-2.5 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-800 text-[11px] font-medium" title="Cerrar sesión">
+                        Salir
+                    </button>
+                    <button onclick="toggleTheme()" aria-label="Cambiar tema" class="w-8 h-8 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 flex items-center justify-center text-zinc-500 dark:text-zinc-400 transition-colors">
                         <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z"/></svg>
                         <svg class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>
-                    </button>
-                    <button id="btn-logout-mobile" onclick="cerrarSesionAdmin()" class="hidden items-center gap-1.5 px-3 h-9 rounded-xl surface hover:bg-zinc-50 dark:hover:bg-zinc-900 text-zinc-700 dark:text-zinc-300 text-xs font-medium transition-colors" title="Cerrar sesión">
-                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Salir
                     </button>
                 </div>
             </div>
 
-            <!-- Navegación segmentada (w-max min-w-full para que el fondo cubra todas las pestañas al hacer scroll en móvil) -->
+            <!-- Navegación segmentada -->
             <div class="flex items-center gap-3 w-full lg:w-auto overflow-x-auto hide-scrollbar">
-                <nav class="inline-flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/70 dark:border-zinc-800/80 w-max min-w-full lg:min-w-0 lg:w-auto">
-                    <button onclick="switchTab('manual')" id="tab-manual" class="nav-tab active shrink-0">
+                <nav class="flex items-center gap-1 bg-zinc-100/90 dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200/70 dark:border-zinc-800/80 w-full lg:w-auto justify-between lg:justify-start">
+                    <button onclick="switchTab('manual')" id="tab-manual" class="nav-tab active">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                         Tareo HR
                     </button>
-                    <button onclick="switchTab('escaner')" id="tab-escaner" class="nav-tab shrink-0">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 14.625h2.25v2.25H13.5v-2.25zm4.5 0h2.25v2.25H18v-2.25zm-4.5 4.5h2.25v1.125H13.5v-1.125zm4.5-2.25h2.25v3.375H18v-3.375z"/></svg>
-                        Escáner QR
-                    </button>
-                    <button onclick="switchTab('reportes')" id="tab-reportes" class="nav-tab shrink-0">
+                    <button onclick="switchTab('reportes')" id="tab-reportes" class="nav-tab">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
                         Mes
                     </button>
-                    <button onclick="switchTab('directorio')" id="tab-directorio" class="nav-tab shrink-0">
+                    <button onclick="switchTab('directorio')" id="tab-directorio" class="nav-tab">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
                         Directorio
                     </button>
-                    <button onclick="switchTab('registro')" id="tab-registro" class="nav-tab shrink-0">
+                    <button onclick="switchTab('registro')" id="tab-registro" class="nav-tab">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zM4 19.235v-.11a6.375 6.375 0 0112.75 0v.109A12.318 12.318 0 0110.374 21c-2.331 0-4.512-.645-6.374-1.766z"/></svg>
                         Nuevo ingreso
                     </button>
-                    <button onclick="requireAuth()" id="tab-ajustes" class="nav-tab shrink-0">
+                    <button onclick="requireAuth()" id="tab-ajustes" class="nav-tab">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                         Ajustes
                     </button>
@@ -542,45 +564,6 @@
                             <tr><td colspan="3" class="py-16 text-center text-xs text-zinc-400">Pulse "Sincronizar" para cargar la planilla.</td></tr>
                         </tbody>
                     </table>
-                </div>
-            </div>
-        </section>
-
-        <!-- 1.5 ESCÁNER QR DEDICADO (SOLO AUTORIZADOS POR RRHH) -->
-        <section id="view-escaner" class="hidden flex-col pb-10 fade-in">
-            <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tight text-zinc-950 dark:text-white">Escáner QR de asistencia</h1>
-                    <p class="text-[13px] text-zinc-500 dark:text-zinc-400 mt-1">Habilitado exclusivamente para colaboradores con Código QR aprobado por Recursos Humanos.</p>
-                </div>
-                <div class="flex items-center gap-2">
-                    <button id="btn-toggle-camara" onclick="toggleCamaraQR()" class="h-10 px-4 bg-brand-blue hover:bg-blue-700 text-white rounded-xl text-xs font-semibold transition-colors">
-                        Reiniciar cámara
-                    </button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <!-- Cámara en vivo -->
-                <div class="lg:col-span-7 surface rounded-2xl p-5 flex flex-col gap-4">
-                    <div id="qr-reader" class="w-full rounded-xl overflow-hidden bg-zinc-950 min-h-[290px] border border-zinc-200 dark:border-zinc-800"></div>
-                    <div id="qr-scan-status" class="text-center text-xs text-zinc-500 dark:text-zinc-400 px-3.5 py-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800">
-                        Apunta la cámara al código QR personal del colaborador.
-                    </div>
-                </div>
-
-                <!-- Lista de colaboradores autorizados con QR en esta sucursal -->
-                <div class="lg:col-span-5 surface rounded-2xl p-5">
-                    <div class="flex items-center justify-between pb-3 mb-3 border-b border-zinc-100 dark:border-zinc-800">
-                        <div>
-                            <h2 class="text-sm font-semibold text-zinc-950 dark:text-white">Autorizados con QR</h2>
-                            <p class="text-[11px] text-zinc-400">Personal habilitado en esta sucursal</p>
-                        </div>
-                        <span id="badge-total-qr" class="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-xs font-semibold tabular">0</span>
-                    </div>
-                    <div id="lista-autorizados-qr" class="divide-y divide-zinc-100 dark:divide-zinc-800/80 max-h-[340px] overflow-y-auto hide-scrollbar text-xs">
-                        <div class="py-8 text-center text-zinc-400">Cargando personal autorizado...</div>
-                    </div>
                 </div>
             </div>
         </section>
@@ -832,7 +815,7 @@
         if (localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
 
         /* --- ESTADO GLOBAL --- */
-        var views = ['manual', 'escaner', 'registro', 'reportes', 'ajustes', 'directorio'];
+        var views = ['manual', 'registro', 'reportes', 'ajustes', 'directorio'];
         var urlParams = new URLSearchParams(window.location.search);
         var urlSucursalFija = urlParams.get('sucursal') || '';
         var currentSucursalId = urlSucursalFija || sessionStorage.getItem('mas_tienda_sucursal') || 'SUC-001';
@@ -965,9 +948,6 @@
 
         /* --- NAVEGACIÓN --- */
         function switchTab(viewId) {
-            if (viewId !== 'escaner') {
-                detenerEscanerQR();
-            }
             views.forEach(function(v) {
                 var el = document.getElementById('view-' + v);
                 if (el) el.classList.add('hidden');
@@ -980,10 +960,6 @@
             if (targetTab) targetTab.classList.add('active');
 
             if (viewId === 'manual' && !isTareoLoaded) cargarTareoHoy(false);
-            if (viewId === 'escaner') {
-                cargarAutorizadosQR();
-                iniciarCamaraQR();
-            }
             if (viewId === 'reportes' && !isReporteLoaded) cargarReporteMensual(false);
             if (viewId === 'directorio') cargarDirectorio(true, isDirectorioLoaded);
             if (viewId === 'ajustes') {
@@ -1318,6 +1294,24 @@
                         ? '<button onclick="resetearDispositivo(\'' + emp.dni + '\')" class="h-9 px-4 rounded-xl bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-200/80 dark:border-red-500/20 text-xs font-semibold transition-colors shrink-0">Desvincular celular</button>'
                         : '') +
                 '</div>' +
+                '<div class="mt-5 pt-5 border-t border-zinc-100 dark:border-zinc-800/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">' +
+                    '<div>' +
+                        '<p class="text-xs font-semibold text-zinc-950 dark:text-white">Día de descanso semanal</p>' +
+                        '<p class="text-[11px] text-zinc-400 mt-0.5">Actual: <b class="text-zinc-700 dark:text-zinc-200">' + (emp.diaDescanso || 'DOMINGO') + '</b> · Todo cambio queda registrado en auditoría.</p>' +
+                    '</div>' +
+                    '<div class="flex items-center gap-2 w-full sm:w-auto">' +
+                        '<select id="ficha-dia-descanso" class="input-clean !h-9 !py-0 text-xs font-medium !w-auto flex-grow sm:flex-grow-0">' +
+                            '<option value="DOMINGO"' + ((emp.diaDescanso || 'DOMINGO') === 'DOMINGO' ? ' selected' : '') + '>Domingo</option>' +
+                            '<option value="LUNES"' + (emp.diaDescanso === 'LUNES' ? ' selected' : '') + '>Lunes</option>' +
+                            '<option value="MARTES"' + (emp.diaDescanso === 'MARTES' ? ' selected' : '') + '>Martes</option>' +
+                            '<option value="MIERCOLES"' + (emp.diaDescanso === 'MIERCOLES' ? ' selected' : '') + '>Miércoles</option>' +
+                            '<option value="JUEVES"' + (emp.diaDescanso === 'JUEVES' ? ' selected' : '') + '>Jueves</option>' +
+                            '<option value="VIERNES"' + (emp.diaDescanso === 'VIERNES' ? ' selected' : '') + '>Viernes</option>' +
+                            '<option value="SABADO"' + (emp.diaDescanso === 'SABADO' ? ' selected' : '') + '>Sábado</option>' +
+                        '</select>' +
+                        '<button onclick="guardarDescansoDesdeAdmin(\'' + emp.dni + '\')" class="h-9 px-3.5 rounded-xl bg-brand-blue hover:bg-blue-700 text-white text-xs font-semibold transition-colors shrink-0">Guardar</button>' +
+                    '</div>' +
+                '</div>' +
                 '<div class="mt-5 pt-5 border-t border-zinc-100 dark:border-zinc-800/80 bg-zinc-50/70 dark:bg-zinc-900/50 p-4 rounded-xl border border-zinc-200/60 dark:border-zinc-800/80">' +
                     (emp.qrAutorizado
                         ? '<div class="flex flex-col sm:flex-row items-center gap-5">' +
@@ -1399,163 +1393,135 @@
             ctx.font = "500 12px Inter, Arial, sans-serif";
             ctx.fillText("MAS DIGITAL · CÓDIGO PERSONAL", 210, 64);
 
-            // Dibujar QR centrado
-            var fuenteQR = qrCanvas || qrImg;
-            ctx.drawImage(fuenteQR, 90, 114, 240, 240);
+            // QR centrado
+            var sourceEl = qrCanvas || qrImg;
+            ctx.drawImage(sourceEl, 95, 114, 230, 230);
 
             // Datos del colaborador
             ctx.fillStyle = "#09090B";
-            ctx.font = "bold 18px Inter, Arial, sans-serif";
-            ctx.fillText((emp.nombres + " " + emp.apellidos).substring(0, 32), 210, 396);
+            ctx.font = "bold 19px Inter, Arial, sans-serif";
+            ctx.fillText(String(emp.nombres + " " + emp.apellidos).substring(0, 30), 210, 392);
+
             ctx.fillStyle = "#52525B";
-            ctx.font = "500 13px Inter, Arial, sans-serif";
-            ctx.fillText((emp.cargo || "COLABORADOR").substring(0, 34), 210, 422);
+            ctx.font = "600 13px Inter, Arial, sans-serif";
+            ctx.fillText(String(emp.cargo || "COLABORADOR").toUpperCase(), 210, 420);
+
             ctx.fillStyle = "#2563EB";
             ctx.font = "bold 15px monospace";
-            ctx.fillText("DNI: " + emp.dni, 210, 456);
+            ctx.fillText("DNI: " + emp.dni + (emp.codigo ? "  ·  " + emp.codigo : ""), 210, 452);
+
             ctx.fillStyle = "#A1A1AA";
-            ctx.font = "400 11px Inter, Arial, sans-serif";
-            ctx.fillText("Uso personal e intransferible", 210, 492);
+            ctx.font = "11px Inter, Arial, sans-serif";
+            ctx.fillText("Uso estrictamente personal e intransferible", 210, 492);
 
             var link = document.createElement('a');
-            link.download = "Fotocheck_QR_" + emp.dni + ".png";
+            link.download = "QR_" + emp.dni + "_" + String(emp.nombres).split(" ")[0] + ".png";
             link.href = canvas.toDataURL("image/png");
-            document.body.appendChild(link);
             link.click();
-            document.body.removeChild(link);
             showToast("Fotocheck QR descargado");
         }
 
-        /* --- ESCÁNER QR DEDICADO (SOLO AUTORIZADOS POR RRHH) --- */
+        function regenerarQRColaborador(dni) {
+            openConfirmModal(
+                "Regenerar código QR",
+                "El código QR anterior dejará de funcionar inmediatamente. Tendrás que entregar el nuevo QR al colaborador.",
+                function() {
+                    requireAdminAction(function() {
+                        showLoader("Generando nuevo QR...");
+                        google.script.run.withSuccessHandler(function(r) {
+                            hideLoader();
+                            if (r.success) {
+                                showToast(r.message);
+                                var emp = directoryData.find(function(item) { return String(item.dni).trim() === String(dni).trim(); });
+                                if (emp) emp.tokenQR = r.tokenQR;
+                                localStorage.setItem('mas_cache_directorio', JSON.stringify(directoryData));
+                                abrirFichaEmpleado(dni);
+                            } else {
+                                showToast(r.message || "Error al regenerar QR", true);
+                            }
+                        }).withFailureHandler(function() {
+                            hideLoader();
+                            showToast("Error de red", true);
+                        }).regenerarTokenQR(dni, currentAuthPass);
+                    });
+                }
+            );
+        }
+
+        /* --- ESCÁNER QR (MODO RESPALDO / KIOSCO) --- */
         var html5QrInstance = null;
         var qrEnPausa = false;
-        var camaraActiva = false;
 
         function abrirEscanerQR() {
-            switchTab('escaner');
-        }
-
-        function cargarAutorizadosQR() {
-            var cont = document.getElementById('lista-autorizados-qr');
-            var badge = document.getElementById('badge-total-qr');
-            function pintarLista(emps) {
-                var autorizados = (emps || []).filter(function(e) { return e.qrAutorizado === true; });
-                if (badge) badge.innerText = autorizados.length;
-                if (!cont) return;
-                if (autorizados.length === 0) {
-                    cont.innerHTML = '<div class="py-8 text-center text-zinc-400">Ningún colaborador de esta sucursal tiene QR aprobado por RRHH.</div>';
-                    return;
+            requireAdminAction(function() {
+                if (typeof Html5Qrcode === 'undefined') {
+                    return showModal("Error", "No se pudo cargar la librería de cámara QR.", false);
                 }
-                cont.innerHTML = '';
-                autorizados.forEach(function(e) {
-                    cont.innerHTML +=
-                        '<div class="py-2.5 flex items-center justify-between gap-2">' +
-                            '<div class="min-w-0">' +
-                                '<p class="font-medium text-zinc-900 dark:text-zinc-100 truncate">' + e.nombres + ' ' + e.apellidos + '</p>' +
-                                '<p class="text-[11px] text-zinc-400 tabular">DNI ' + e.dni + ' · ' + (e.cargo || 'Colaborador') + '</p>' +
-                            '</div>' +
-                            '<span class="px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 text-[10px] font-semibold shrink-0">Autorizado</span>' +
-                        '</div>';
+                var modal = document.getElementById('modal-escaner-qr');
+                var content = document.getElementById('escaner-content');
+                var statusEl = document.getElementById('qr-scan-status');
+                statusEl.className = "text-center text-xs text-zinc-500 dark:text-zinc-400 px-3 py-2.5 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800";
+                statusEl.innerText = "Iniciando cámara...";
+
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                setTimeout(function() { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+
+                qrEnPausa = false;
+                html5QrInstance = new Html5Qrcode("qr-reader");
+                html5QrInstance.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 220, height: 220 } },
+                    function(decodedText) {
+                        if (qrEnPausa) return;
+                        procesarLecturaQR(decodedText);
+                    },
+                    function() {}
+                ).then(function() {
+                    statusEl.innerText = "Apunta la cámara al código QR personal del colaborador.";
+                }).catch(function() {
+                    statusEl.className = "text-center text-xs text-red-600 dark:text-red-400 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/70 dark:border-red-500/20";
+                    statusEl.innerText = "No se pudo acceder a la cámara. Verifica los permisos del navegador.";
                 });
-            }
-
-            if (directoryData && directoryData.length > 0) {
-                pintarLista(directoryData);
-            } else {
-                google.script.run.withSuccessHandler(function(emps) {
-                    directoryData = emps || [];
-                    isDirectorioLoaded = true;
-                    pintarLista(directoryData);
-                }).obtenerEmpleados(currentSucursalId);
-            }
-        }
-
-        function iniciarCamaraQR() {
-            if (camaraActiva) return;
-            var statusEl = document.getElementById('qr-scan-status');
-            var btnCam = document.getElementById('btn-toggle-camara');
-
-            if (typeof Html5Qrcode === 'undefined') {
-                if (statusEl) statusEl.innerText = "No se pudo cargar la librería de cámara QR.";
-                return;
-            }
-            if (statusEl) {
-                statusEl.className = "text-center text-xs text-zinc-500 dark:text-zinc-400 px-3.5 py-3 rounded-xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800";
-                statusEl.innerText = "Activando cámara...";
-            }
-
-            qrEnPausa = false;
-            html5QrInstance = new Html5Qrcode("qr-reader");
-            html5QrInstance.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 220, height: 220 } },
-                function(decodedText) {
-                    if (qrEnPausa) return;
-                    procesarLecturaQR(decodedText);
-                },
-                function() {}
-            ).then(function() {
-                camaraActiva = true;
-                if (btnCam) btnCam.innerText = "Detener cámara";
-                if (statusEl) statusEl.innerText = "Cámara activa. Apunta al código QR personal autorizado.";
-            }).catch(function() {
-                camaraActiva = false;
-                if (btnCam) btnCam.innerText = "Activar cámara";
-                if (statusEl) {
-                    statusEl.className = "text-center text-xs text-red-600 dark:text-red-400 px-3.5 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/70 dark:border-red-500/20";
-                    statusEl.innerText = "No se pudo acceder a la cámara. Verifica los permisos del navegador y pulsa 'Activar cámara'.";
-                }
             });
-        }
-
-        function toggleCamaraQR() {
-            if (camaraActiva) {
-                detenerEscanerQR();
-            } else {
-                iniciarCamaraQR();
-            }
         }
 
         function procesarLecturaQR(decodedText) {
             qrEnPausa = true;
             var statusEl = document.getElementById('qr-scan-status');
-            statusEl.className = "text-center text-xs text-blue-600 dark:text-blue-400 px-3.5 py-3 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200/70 dark:border-blue-500/20 font-medium";
-            statusEl.innerText = "Validando código QR autorizado...";
+            statusEl.className = "text-center text-xs text-blue-600 dark:text-blue-400 px-3 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-500/10 border border-blue-200/70 dark:border-blue-500/20 font-medium";
+            statusEl.innerText = "Validando código QR...";
 
             google.script.run.withSuccessHandler(function(res) {
                 if (res && res.success) {
-                    statusEl.className = "text-center text-xs text-emerald-700 dark:text-emerald-400 px-3.5 py-3 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200/70 dark:border-emerald-500/25 font-semibold whitespace-pre-line";
+                    statusEl.className = "text-center text-xs text-emerald-700 dark:text-emerald-400 px-3 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/15 border border-emerald-200/70 dark:border-emerald-500/25 font-semibold whitespace-pre-line";
                     statusEl.innerText = res.message;
                     showToast("Asistencia QR registrada");
-                    isTareoLoaded = false;
+                    cargarTareoHoy(true);
                 } else {
-                    statusEl.className = "text-center text-xs text-red-600 dark:text-red-400 px-3.5 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/70 dark:border-red-500/20 font-medium";
-                    statusEl.innerText = (res && res.message) ? res.message : "Código QR no autorizado o inválido.";
+                    statusEl.className = "text-center text-xs text-red-600 dark:text-red-400 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/70 dark:border-red-500/20 font-medium";
+                    statusEl.innerText = (res && res.message) ? res.message : "Código QR inválido.";
                 }
                 setTimeout(function() { qrEnPausa = false; }, 2800);
             }).withFailureHandler(function() {
-                statusEl.className = "text-center text-xs text-red-600 dark:text-red-400 px-3.5 py-3 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/70 dark:border-red-500/20";
+                statusEl.className = "text-center text-xs text-red-600 dark:text-red-400 px-3 py-2.5 rounded-xl bg-red-50 dark:bg-red-500/10 border border-red-200/70 dark:border-red-500/20";
                 statusEl.innerText = "Error de conexión al registrar QR.";
                 setTimeout(function() { qrEnPausa = false; }, 2500);
             }).marcarAsistenciaQR(decodedText, currentAuthPass, currentSucursalId);
         }
 
-        function detenerEscanerQR() {
-            var btnCam = document.getElementById('btn-toggle-camara');
-            var statusEl = document.getElementById('qr-scan-status');
-            if (html5QrInstance && camaraActiva) {
-                camaraActiva = false;
+        function cerrarEscanerQR() {
+            var modal = document.getElementById('modal-escaner-qr');
+            var content = document.getElementById('escaner-content');
+            modal.classList.add('opacity-0'); content.classList.add('scale-95');
+            setTimeout(function() { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+
+            if (html5QrInstance) {
                 html5QrInstance.stop().then(function() {
                     html5QrInstance.clear();
                     html5QrInstance = null;
-                    if (btnCam) btnCam.innerText = "Activar cámara";
-                    if (statusEl) statusEl.innerText = "Cámara detenida. Pulsa 'Activar cámara' para continuar.";
                 }).catch(function() {
                     html5QrInstance = null;
                 });
-            } else {
-                camaraActiva = false;
-                if (btnCam) btnCam.innerText = "Activar cámara";
             }
         }
 
@@ -1566,11 +1532,46 @@
             setTimeout(function() { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
         }
 
+        function guardarDescansoDesdeAdmin(dni) {
+            var sel = document.getElementById('ficha-dia-descanso');
+            var nuevoDia = sel ? sel.value : 'DOMINGO';
+            var emp = directoryData.find(function(item) { return String(item.dni).trim() === String(dni).trim(); });
+            if (emp && (emp.diaDescanso || 'DOMINGO') === nuevoDia) {
+                return showToast("El colaborador ya tiene ese día de descanso");
+            }
+            openPromptModal(
+                "Cambiar día de descanso",
+                "Indica el motivo del cambio de descanso a " + nuevoDia + " (quedará guardado en auditoría):",
+                "Ej. Cambio de turno semanal, solicitud del colaborador...",
+                function(motivo) {
+                    requireAdminAction(function() {
+                        showLoader("Actualizando día de descanso...");
+                        google.script.run.withSuccessHandler(function(r) {
+                            hideLoader();
+                            if (r && r.success) {
+                                showToast(r.message || "Descanso actualizado");
+                                if (emp) emp.diaDescanso = nuevoDia;
+                                localStorage.setItem('mas_cache_directorio_' + currentSucursalId, JSON.stringify(directoryData));
+                                isTareoLoaded = false;
+                                abrirFichaEmpleado(dni);
+                            } else {
+                                showToast((r && r.message) ? r.message : "No se pudo actualizar", true);
+                            }
+                        }).withFailureHandler(function() {
+                            hideLoader();
+                            showToast("Error de red al actualizar descanso", true);
+                        }).actualizarDiaDescanso(dni, nuevoDia, motivo, currentAuthPass, currentSucursalId);
+                    });
+                }
+            );
+        }
+
         function resetearDispositivo(dni) {
-            openConfirmModal(
-                "Desvincular dispositivo",
-                "El colaborador podrá registrar un nuevo celular en su próximo ingreso.",
-                function() {
+            openPromptModal(
+                "Justificación para desvincular celular",
+                "Indica el motivo por el cual se desvincula el celular de este colaborador (quedará registrado en auditoría):",
+                "Ej. Cambio de celular, equipo perdido, cambio de navegador...",
+                function(motivo) {
                     requireAdminAction(function() {
                         showLoader("Desvinculando...");
                         google.script.run.withSuccessHandler(function(r) {
@@ -1586,7 +1587,7 @@
                         }).withFailureHandler(function() {
                             hideLoader();
                             showToast("Error de red al desvincular", true);
-                        }).desvincularDispositivo(dni, currentAuthPass, currentSucursalId);
+                        }).desvincularDispositivo(dni, motivo, currentAuthPass, currentSucursalId);
                     });
                 }
             );
